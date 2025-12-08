@@ -8,11 +8,12 @@ class Level {
 public:
     Level(Physics& physics, float width, float height);
     void draw(sf::RenderWindow& window);
-    float groundY() const; // in pixels
+    float groundY() const; 
+
 private:
     Physics& m_physics;
     sf::RectangleShape m_groundShape;
-    b2Body* m_groundBody;
+    b2BodyId m_groundBodyId;
     float m_width;
     float m_height;
     float m_groundY;

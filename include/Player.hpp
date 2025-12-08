@@ -10,11 +10,13 @@ public:
     void handleInput();
     void update(float dt);
     void draw(sf::RenderWindow& window);
+    // Método helper para la cámara
+    sf::Vector2f getPosition() const;
 
 private:
     Physics& m_physics;
-    b2Body* m_body;
-    sf::RectangleShape m_shape;
+    b2BodyId m_bodyId; // Cambio importante
+    sf::RectangleShape m_shape; // O Sprite si ya lo cambiaste
     float m_width;
     float m_height;
     bool m_canJump;

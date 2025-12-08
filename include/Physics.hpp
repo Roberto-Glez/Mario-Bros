@@ -5,16 +5,16 @@
 
 class Physics {
 public:
-    static constexpr float SCALE = 30.0f; // pixels per meter
+    static constexpr float SCALE = 30.0f;
 
     Physics();
     ~Physics();
 
     void step(float dt);
-    b2World& world();
+    b2WorldId worldId(); // Cambio de referencia a ID
 
 private:
-    b2World m_world;
+    b2WorldId m_worldId;
 };
 
 #endif // PHYSICS_HPP

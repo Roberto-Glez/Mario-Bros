@@ -1,21 +1,24 @@
 #include "Physics.hpp"
 
 Physics::Physics()
-: m_world(b2Vec2(0.0f, 9.8f))
 {
+    // En v3 se usa una estructura de definición y una función de creación
+    b2WorldDef worldDef = b2DefaultWorldDef();
+    worldDef.gravity = (b2Vec2){0.0f, 9.8f}; // Llaves para struct C
+    m_worldId = b2CreateWorld(&worldDef);
 }
 
-Physics::~Physics() {}
+Physics::~Physics() {
+    b2DestroyWorld(m_worldId);
+}
 
 void Physics::step(float dt)
 {
-    // Fixed-step for Box2D
-    const int32 velocityIterations = 8;
-    const int32 positionIterations = 3;
-    m_world.Step(dt, velocityIterations, positionIterations);
+    // El paso de física en v3 es más simple
+    b2World_Step(m_worldId, dt, 4); // 4 sub-steps es un buen default
 }
 
-b2World& Physics::world()
+b2WorldId Physics::worldId()
 {
-    return m_world;
+    return m_worldId;
 }
