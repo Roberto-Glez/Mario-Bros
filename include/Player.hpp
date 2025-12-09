@@ -14,9 +14,27 @@ public:
     sf::Vector2f getPosition() const;
 
 private:
+    void updateAnimation(float dt);
+
     Physics& m_physics;
-    b2BodyId m_bodyId; // Cambio importante
-    sf::RectangleShape m_shape; // O Sprite si ya lo cambiaste
+    b2BodyId m_bodyId;
+    
+    sf::Sprite m_sprite;
+    sf::Texture m_texture;
+
+    // Animation state
+    enum class AnimationState {
+        Idle,
+        Run,
+        Jump,
+        Landing
+    };
+    
+    AnimationState m_currentState;
+    float m_animationTimer;
+    int m_currentFrame;
+    bool m_facingRight;
+
     float m_width;
     float m_height;
     bool m_canJump;
