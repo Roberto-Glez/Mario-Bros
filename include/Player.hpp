@@ -12,6 +12,7 @@ public:
     void draw(sf::RenderWindow& window);
     // Método helper para la cámara
     sf::Vector2f getPosition() const;
+    sf::FloatRect getBounds() const;
 
 private:
     void updateAnimation(float dt);

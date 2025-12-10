@@ -26,9 +26,15 @@ int main() {
         player.handleInput(dt); // Pass dt for acceleration timer
         player.update(dt);
         
+        level.update(dt);
+        level.checkCollisions(player);
+
         // Actualizar cámara
-        // Seguir en X
-        float camX = player.getPosition().x;
+        // Seguir en X con restricción (Clamp Left)
+        // La cámara no debe mostrar nada a la izquierda de x=0.
+        // Centro mínimo = WIDTH / 2.0f
+        float minCamX = (float)WIDTH / 2.0f;
+        float camX = std::max(player.getPosition().x, minCamX);
         
         // Seguir en Y con restricción (Clamp)
         // El suelo está abajo (Y grande). Queremos que la cámara NO baje más allá del suelo.

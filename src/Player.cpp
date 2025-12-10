@@ -62,20 +62,30 @@ void Player::handleInput(float dt)
 
     // Input Handling
     bool isMoving = false;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-        isMoving = true;
-        m_facingRight = false;
+    bool leftInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A);
+    bool rightInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D);
+    bool isSkidding = false;
+
+    if (leftInput) {
+        if (vel.x > 0.5f) isSkidding = true;
+        else {
+            isMoving = true;
+            m_facingRight = false;
+        }
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-        isMoving = true;
-        m_facingRight = true;
+    if (rightInput) {
+        if (vel.x < -0.5f) isSkidding = true;
+        else {
+            isMoving = true;
+            m_facingRight = true;
+        }
     }
 
     // Timer Logic
-    if (isMoving) {
+    if (isMoving && !isSkidding) {
         m_runTimer += dt;
     } else {
-        m_runTimer = 0.0f; // Reset momentum on stop
+        m_runTimer = 0.0f; // Reset momentum on stop or skid
     }
 
     // Calculate Speed based on Timer
@@ -90,29 +100,24 @@ void Player::handleInput(float dt)
     }
 
     // Apply Velocity
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-        desiredVel = -currentSpeed;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-        desiredVel = currentSpeed;
+    if (isSkidding) {
+        desiredVel = vel.x * 0.90f; // Braking friction
+    } else {
+        if (leftInput) desiredVel = -currentSpeed;
+        else if (rightInput) desiredVel = currentSpeed;
+        else desiredVel = vel.x * 0.5f; // Stop friction
     }
 
     // Determine State logic for animation
     // Check Jump
     if (!m_canJump) {
         m_state = State::Jumping;
+    } else if (isSkidding) {
+        m_state = State::Braking;
+    } else if (std::abs(vel.x) > 0.1f) {
+        m_state = State::Running;
     } else {
-        // On ground
-        if (std::abs(vel.x) > 0.1f) {
-            // Check for braking (moving opposite to velocity)
-            if ((desiredVel > 0 && vel.x < -0.5f) || (desiredVel < 0 && vel.x > 0.5f)) {
-                 m_state = State::Braking;
-            } else {
-                 m_state = State::Running;
-            }
-        } else {
-            m_state = State::Idle;
-        }
+        m_state = State::Idle;
     }
 
     // Physics Movement
@@ -248,4 +253,9 @@ void Player::draw(sf::RenderWindow& window)
 
 sf::Vector2f Player::getPosition() const {
     return m_sprite.getPosition();
+}
+
+sf::FloatRect Player::getBounds() const
+{
+    return m_sprite.getGlobalBounds();
 }

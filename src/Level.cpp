@@ -1,4 +1,5 @@
 #include "Level.hpp"
+#include "Player.hpp"
 #include <iostream>
 
 Level::Level(Physics& physics, float width, float height)
@@ -83,11 +84,82 @@ Level::Level(Physics& physics, float width, float height)
     fixtureDef.friction = 0.6f;
     
     b2CreatePolygonShape(m_groundBodyId, &fixtureDef, &groundBox);
+
+    // Muro Izquierdo (Invisible)
+    // Bloquea el movimiento hacia la izquierda de x=0
+    b2BodyDef wallDef = b2DefaultBodyDef();
+    // Posición: Centrado en x = -10 (ancho 20). Su borde derecho estará en 0.
+    wallDef.position = (b2Vec2){-10.0f / Physics::SCALE, (height / 2.0f) / Physics::SCALE};
+    wallDef.type = b2_staticBody;
+    
+    b2BodyId wallId = b2CreateBody(m_physics.worldId(), &wallDef);
+    
+    b2Polygon wallBox = b2MakeBox(10.0f / Physics::SCALE, (height / 2.0f) / Physics::SCALE); // Altura completa
+    b2ShapeDef wallShapeDef = b2DefaultShapeDef();
+    wallShapeDef.friction = 0.0f; // Sin fricción para que no se pegue
+    
+    b2CreatePolygonShape(wallId, &wallShapeDef, &wallBox);
+
+    // Add a Test Block
+    // Position: x=200, y=groundY - 64 (High enough to jump and hit)
+    // Note: y grows downwards. groundY is `height - 32`.
+    // Let's put it at `height - 32 - 48` = 80px above ground?
+    // Player jumps quite high.
+    m_blocks.emplace_back(m_physics, 250.0f, m_groundY - 64.0f);
+}
+
+void Level::update(float dt) {
+    for (auto& block : m_blocks) {
+        block.update(dt);
+    }
+    for (auto& item : m_items) {
+        item->update(dt);
+    }
+}
+
+void Level::checkCollisions(Player& player) {
+    // Check Head collision with Blocks
+    // Simple AABB check: Player Head (top of sprite) vs Block Bottom
+    sf::Vector2f pPos = player.getPosition();
+    sf::FloatRect pBounds = player.getBounds();
+    
+    // Define a small sensor box above the player's head
+    sf::FloatRect headRect(pPos.x - 5, pBounds.top - 5, 10, 10);
+
+    for (auto& block : m_blocks) {
+        if (block.isActive()) {
+            sf::FloatRect bBounds = block.getBounds();
+            // Check intersection
+            if (headRect.intersects(bBounds)) {
+                // Check if player is moving UP (Velocity Y < 0)
+                // We need access to player velocity or assume hit if head triggers
+                // ideally passed in, but let's assume valid hit for now
+                // Actually, trigger hit only if block is Question
+                block.hit();
+                
+                // Spawn Item
+                // Only if it WAS a question block (now empty)
+                // If we had a mechanism to know if hit succeeded...
+                // Let's assume hitting it spawns item for now (simplified)
+                // Better: check if items vector is empty to avoid dupes for this demo
+                if (m_items.empty()) {
+                     m_items.push_back(std::make_unique<Item>(m_physics, block.getPosition().x, block.getPosition().y));
+                }
+            }
+        }
+    }
 }
 
 void Level::draw(sf::RenderWindow& window)
 {
     window.draw(m_groundVertices, &m_texture);
+    
+    for (auto& block : m_blocks) {
+        block.draw(window);
+    }
+    for (auto& item : m_items) {
+        item->draw(window);
+    }
 }
 
 float Level::groundY() const
