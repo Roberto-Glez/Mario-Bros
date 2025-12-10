@@ -23,7 +23,7 @@ int main() {
     auto update = [&](float dt) {
         // Step physics with fixed dt
         physics.step(dt);
-        player.handleInput();
+        player.handleInput(dt); // Pass dt for acceleration timer
         player.update(dt);
         
         // Actualizar cámara

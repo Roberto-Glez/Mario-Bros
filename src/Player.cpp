@@ -5,8 +5,9 @@
 
 Player::Player(Physics& physics, float startX, float startY)
 : m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false),
-  m_animationTimer(0.0f), m_groundTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
+  m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
+    // ... (Constructor content unchanged) ...
     // Load Texture
     if (!m_texture.loadFromFile("assets/images/mario_chiquito.png")) {
         std::cerr << "Error loading mario_chiquito.png" << std::endl;
@@ -48,19 +49,52 @@ Player::Player(Physics& physics, float startX, float startY)
     b2CreatePolygonShape(m_bodyId, &shapeDef, &dynamicBox);
 }
 
-void Player::handleInput()
+void Player::handleInput(float dt)
 {
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
     float desiredVel = 0.0f;
-    const float moveSpeed = 4.0f;
+    
+    // Acceleration Constants
+    const float WALK_SPEED = 4.0f;
+    const float RUN_SPEED = 8.0f;     // "Faster"
+    const float ACCEL_DELAY = 1.0f;   // 0 to 1.0s: Walk (5 steps approx)
+    const float ACCEL_RAMP = 1.5f;    // 1.0s to 2.5s: Acceleration phase (Total ~10 steps)
 
+    // Input Handling
+    bool isMoving = false;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-        desiredVel = -moveSpeed;
+        isMoving = true;
         m_facingRight = false;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-        desiredVel = moveSpeed;
+        isMoving = true;
         m_facingRight = true;
+    }
+
+    // Timer Logic
+    if (isMoving) {
+        m_runTimer += dt;
+    } else {
+        m_runTimer = 0.0f; // Reset momentum on stop
+    }
+
+    // Calculate Speed based on Timer
+    float currentSpeed = WALK_SPEED;
+    if (m_runTimer > ACCEL_DELAY) {
+        // Ramp from WALK to RUN
+        // fraction goes from 0.0 to 1.0 over ACCEL_RAMP seconds
+        float fraction = (m_runTimer - ACCEL_DELAY) / ACCEL_RAMP;
+        if (fraction > 1.0f) fraction = 1.0f;
+        
+        currentSpeed = WALK_SPEED + (RUN_SPEED - WALK_SPEED) * fraction;
+    }
+
+    // Apply Velocity
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
+        desiredVel = -currentSpeed;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+        desiredVel = currentSpeed;
     }
 
     // Determine State logic for animation
@@ -130,7 +164,20 @@ void Player::update(float dt)
 }
 
 void Player::updateAnimation(float dt) {
-    const float frameTime = 0.1f; // Speed of animation
+    // Dynamic Animation Speed
+    // Default: 0.1s (10 fps)
+    // Max Run: 0.05s (20 fps) "He fits 2 steps in the time of 1"
+    
+    float frameTime = 0.1f;
+    if (m_state == State::Running) {
+        // Accelerate animation as we run faster
+        const float MAX_SPEED_TIME = 2.5f; // Timer value for max speed
+        float factor = std::min(m_runTimer / MAX_SPEED_TIME, 1.0f);
+        
+        // Lerp from 0.1 to 0.05
+        frameTime = 0.1f - (0.05f * factor);
+    }
+
     int startFrame = 0;
     int numFrames = 1;
 

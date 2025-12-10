@@ -7,7 +7,7 @@
 class Player {
 public:
     Player(Physics& physics, float startX, float startY);
-    void handleInput();
+    void handleInput(float dt); // Added dt for acceleration timer
     void update(float dt);
     void draw(sf::RenderWindow& window);
     // Método helper para la cámara
@@ -29,6 +29,7 @@ private:
     // Animation state
     float m_animationTimer;
     float m_groundTimer; // To filter jump apex
+    float m_runTimer;    // Momentum timer
     int m_currentFrame;
     bool m_facingRight;
     enum class State { Idle, Running, Jumping, Braking } m_state;
