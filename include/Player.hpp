@@ -10,6 +10,8 @@ public:
     void handleInput(float dt); // Added dt for acceleration timer
     void update(float dt);
     void draw(sf::RenderWindow& window);
+    void grow();
+    bool isBig() const { return m_isBig; }
     // Método helper para la cámara
     sf::Vector2f getPosition() const;
     sf::FloatRect getBounds() const;
@@ -21,11 +23,13 @@ private:
     b2BodyId m_bodyId;
     
     sf::Texture m_texture;
+    sf::Texture m_bigTexture;
     sf::Sprite m_sprite;
     
     float m_width;
     float m_height;
     bool m_canJump;
+    bool m_isBig;
 
     // Animation state
     float m_animationTimer;

@@ -4,7 +4,7 @@
 #include <iostream>
 
 Player::Player(Physics& physics, float startX, float startY)
-: m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false),
+: m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false),
   m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
     // ... (Constructor content unchanged) ...
@@ -12,6 +12,9 @@ Player::Player(Physics& physics, float startX, float startY)
     if (!m_texture.loadFromFile("assets/images/mario_chiquito.png")) {
         std::cerr << "Error loading mario_chiquito.png" << std::endl;
         // Handle error? For now just continue, sprite will be white
+    }
+    if (!m_bigTexture.loadFromFile("assets/images/mario_grande.png")) {
+        std::cerr << "Error loading mario_grande.png" << std::endl;
     }
     m_sprite.setTexture(m_texture);
     
@@ -233,16 +236,30 @@ void Player::updateAnimation(float dt) {
     int finalStride = 18;
     int left = textureIndex * finalStride;
 
-    // Ajuste final V2:
-    // - Height 20 tenía un pixel negro abajo. -> Bajamos a 19.
-    // - Levitación:
-    //   Si Feet están en y=18 (último pixel válido en altura 19), y queremos distancia visual 16px.
-    //   (18 - OriginY) * 2.0 = 16.
-    //   18 - OriginY = 8.
-    //   OriginY = 10.
-    
-    m_sprite.setTextureRect(sf::IntRect(left, 0, 16, 19)); 
-    m_sprite.setOrigin(16.0f / 2.0f, 10.0f);
+    if (m_isBig) {
+        // Big Mario Animation
+        // Height adjusted to 33 to prevent foot clipping
+        // Origin adjusted to (8, 17.5) to align vertically with physics center
+        // - Physics Box Height ~30. Center to Bottom = 15.
+        // - Sprite Height 33. Feet at 33.
+        // - We want Feet (33) to align with Body Bottom (Center + 15).
+        // - So Center should align with Sprite 18 (33 - 15).
+        // - Let's use Origin 17.5 to center it well.
+        m_sprite.setTextureRect(sf::IntRect(left, 0, 16, 33));
+        m_sprite.setOrigin(16.0f / 2.0f, 17.5f); 
+    } else {
+        // Small Mario Animation
+        // Ajuste final V2:
+        // - Height 20 tenía un pixel negro abajo. -> Bajamos a 19.
+        // - Levitación:
+        //   Si Feet están en y=18 (último pixel válido en altura 19), y queremos distancia visual 16px.
+        //   (18 - OriginY) * 2.0 = 16.
+        //   18 - OriginY = 8.
+        //   OriginY = 10.
+        
+        m_sprite.setTextureRect(sf::IntRect(left, 0, 16, 19)); 
+        m_sprite.setOrigin(16.0f / 2.0f, 10.0f);
+    }
 
 }
 
@@ -258,4 +275,39 @@ sf::Vector2f Player::getPosition() const {
 sf::FloatRect Player::getBounds() const
 {
     return m_sprite.getGlobalBounds();
+}
+
+void Player::grow() {
+    if (m_isBig) return; // Already big
+
+    m_isBig = true;
+    m_sprite.setTexture(m_bigTexture);
+    
+    // Resize Physics Body
+    // Destroy old
+    b2Vec2 pos = b2Body_GetPosition(m_bodyId);
+    b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
+    b2DestroyBody(m_bodyId);
+    
+    // Create new (Taller)
+    b2BodyDef bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2_dynamicBody;
+    // Keep position (Might need slight Y adjustment upwards to avoid sticking in floor)
+    // Old height 16, New height 32. Center shifts up by 8px.
+    // Box2D origin is center.
+    bodyDef.position = (b2Vec2){pos.x, pos.y - (16.0f / Physics::SCALE / 2.0f)}; 
+    bodyDef.fixedRotation = true;
+    
+    m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
+    
+    // Make Box (16x30 approx, avoid full 32 to reduce snag)
+    // Let's use 16x30
+    b2Polygon box = b2MakeBox((14.0f / 2.0f) / Physics::SCALE, (30.0f / 2.0f) / Physics::SCALE);
+    b2ShapeDef shapeDef = b2DefaultShapeDef();
+    shapeDef.density = 1.0f;
+    shapeDef.friction = 0.3f;
+    
+    b2CreatePolygonShape(m_bodyId, &shapeDef, &box);
+    
+    b2Body_SetLinearVelocity(m_bodyId, vel); // Maintain momentum
 }

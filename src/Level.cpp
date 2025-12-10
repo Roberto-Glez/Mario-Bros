@@ -131,21 +131,25 @@ void Level::checkCollisions(Player& player) {
             sf::FloatRect bBounds = block.getBounds();
             // Check intersection
             if (headRect.intersects(bBounds)) {
-                // Check if player is moving UP (Velocity Y < 0)
-                // We need access to player velocity or assume hit if head triggers
-                // ideally passed in, but let's assume valid hit for now
-                // Actually, trigger hit only if block is Question
+                // Trigger hit only if block is Question
                 block.hit();
                 
                 // Spawn Item
-                // Only if it WAS a question block (now empty)
-                // If we had a mechanism to know if hit succeeded...
-                // Let's assume hitting it spawns item for now (simplified)
-                // Better: check if items vector is empty to avoid dupes for this demo
                 if (m_items.empty()) {
                      m_items.push_back(std::make_unique<Item>(m_physics, block.getPosition().x, block.getPosition().y));
                 }
             }
+        }
+    }
+
+    // Check Item Collisions (Collection)
+    for (auto& item : m_items) {
+        if (!item->isCollected()) {
+             // Simple Box collision between Player and Item
+             if (player.getBounds().intersects(item->getBounds())) {
+                 item->collect();
+                 player.grow();
+             }
         }
     }
 }

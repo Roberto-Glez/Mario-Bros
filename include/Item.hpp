@@ -9,6 +9,7 @@ public:
 
     virtual void update(float dt);
     virtual void draw(sf::RenderWindow& window);
+    sf::FloatRect getBounds() const { return m_sprite.getGlobalBounds(); }
 
     bool isCollected() const { return m_collected; }
     void collect();
