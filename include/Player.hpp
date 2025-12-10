@@ -28,6 +28,7 @@ private:
 
     // Animation state
     float m_animationTimer;
+    float m_groundTimer; // To filter jump apex
     int m_currentFrame;
     bool m_facingRight;
     enum class State { Idle, Running, Jumping, Braking } m_state;

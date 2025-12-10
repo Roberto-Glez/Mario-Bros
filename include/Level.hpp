@@ -12,7 +12,12 @@ public:
 
 private:
     Physics& m_physics;
-    sf::RectangleShape m_groundShape;
+    
+    sf::VertexArray m_groundVertices;
+    sf::Texture m_texture;
+    
+    static constexpr int TILE_SIZE = 16;
+
     b2BodyId m_groundBodyId;
     float m_width;
     float m_height;

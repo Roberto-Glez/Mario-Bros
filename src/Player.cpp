@@ -5,7 +5,7 @@
 
 Player::Player(Physics& physics, float startX, float startY)
 : m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false),
-  m_animationTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
+  m_animationTimer(0.0f), m_groundTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
     // Load Texture
     if (!m_texture.loadFromFile("assets/images/mario_chiquito.png")) {
@@ -104,16 +104,27 @@ void Player::update(float dt)
     m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
     
     // Scale flipping based on direction
-    // Base scale is 2.0f
     if (m_facingRight) {
         m_sprite.setScale(2.0f, 2.0f);
     } else {
         m_sprite.setScale(-2.0f, 2.0f);
     }
 
-    // Chequeo simple de suelo
-    if (std::abs(vel.y) < 0.1f) m_canJump = true;
-    else m_canJump = false;
+    // Chequeo de suelo mejorado (Hysteresis/Timer)
+    // El problema: En el pico del salto, vel.y es ~0, lo que activaba m_canJump y cambiaba el estado a Running.
+    // Solución: Requerir que la velocidad sea baja durante un breve tiempo (ej. 3 frames = 0.05s).
+    if (std::abs(vel.y) < 0.1f) {
+        m_groundTimer += dt;
+    } else {
+        m_groundTimer = 0.0f;
+    }
+
+    // Solo activamos salto si el timer supera el umbral
+    if (m_groundTimer > 0.05f) {
+         m_canJump = true;
+    } else {
+         m_canJump = false;
+    }
 
     updateAnimation(dt);
 }
@@ -157,61 +168,19 @@ void Player::updateAnimation(float dt) {
             m_currentFrame = 0;
         }
     }
-    // If state changes, we might want to reset frame?
-    // For simplicity, just wrap. But for single frames like Idle, m_currentFrame will be 0.
     
-    // Calibración de sprites
     int textureIndex = startFrame + m_currentFrame;
-    
-    // Stride aproximado de 18 (17+1) o similar para evitar desalineación acumulada
-    const int spriteStride = 17; // El usuario dijo 17 de ancho. Probemos ancho 16 y stride 17 o 17 y stride 18?
-    // Si se ve el sprite ANTERIOR, es que estamos muy a la IZQUIERDA.
-    // Index 5 * 17 = 85. Si vemos el anterior (4), el 4 acaba en 4*17+17 = 85.
-    // Si vemos el anterior, significa que el sprite 5 empieza más a la DERECHA.
-    // Probemos con un pequeño offset inicial o un stride mayor.
-    // "Calcula bien a partir de los sprites"
-    
-    // Hipótesis: Los sprites están espaciados de forma irregular o el stride es mayor.
-    // Probaremos Stride 18? (16 ancho + 2 gap? O 17 ancho + 1 gap?)
-    // Y aumentamos altura para no cortar piernas.
     
     // Configuración ajustada visualmente según reporte
     int tileWidth = 16; 
-    int tileHeight = 20; // Más alto para incluir piernas
+    int tileHeight = 20; // Más alto para incluir piernas (pero reducido a 19 abajo)
     int gap = 1;         // Espacio entre sprites
     int offsetX = 0;     // Start offset
 
-    // Recalculate based on specific adjustments requested
-    // "Running cuts left, shows previous". imply we need to go Right. -> Larger stride or offset.
-    // "Idle cuts legs" -> Taller height.
-
-    // Let's try explicit coordinates if specific indices have different spacings, 
-    // but assuming uniform grid first with corrected stride.
-    // If 17 was causing overlap, let's try 18 per step?
-    // User said "Approx 17x16".
-    // 17 width + 1 gap = 18 stride?
-    
-    int left = textureIndex * (tileWidth + gap) + offsetX;
-    // Si el índice es alto (5,6,7), el error se acumula. 
-    // Si tileWidth=17 estricto solapaba, tal vez es 16 y gap 1? (Stride 17).
-    // Pero yo usaba Stride 17 (17*idx) y solapaba.
-    // Entonces el stride debe ser MAYOR.
-    // Probemos Stride = 18? (5*18 = 90). Un salto de 5px a la derecha.
-    
-    // Sin embargo, usuario dice "corta la derecha del actual".
-    // Si estamos a la izquierda, vemos (Final del Anterior) + (Principio del Actual) [y falta el final del actual].
-    // Correcto.
-    // Vamos a probar Stride 18.
     
     int finalStride = 18;
-    left = textureIndex * finalStride;
+    int left = textureIndex * finalStride;
 
-    // Ajuste final según feedback:
-    // - Height 24 traía colores de abajo -> Bajamos a 20.
-    // - Levitaba -> Ajustamos origen para que los pies (abajo del sprite) coincidan con abajo del cuerpo.
-    // Cuerpo (Physics) es 32x32. Centro a abajo = 16.
-    // Sprite es Scale 2.0. Visualmente queremos 16 visual pixels desde el centro/origen hasta abajo.
-    // 16 visual / 2.0 scale = 8 texture pixels.
     // Ajuste final V2:
     // - Height 20 tenía un pixel negro abajo. -> Bajamos a 19.
     // - Levitación:
