@@ -333,3 +333,11 @@ void Player::grow() {
     
     b2Body_SetLinearVelocity(m_bodyId, vel); // Maintain momentum
 }
+
+void Player::bounce() {
+    // Small bounce after stomping enemy - set velocity directly
+    b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
+    // Set upward velocity directly (negative Y = up)
+    b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){vel.x, -6.0f});
+    m_state = State::Jumping;
+}

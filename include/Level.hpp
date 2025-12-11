@@ -8,6 +8,7 @@
 #include "Physics.hpp"
 #include "Block.hpp"
 #include "Item.hpp"
+#include "Goomba.hpp"
 
 // Forward declaration
 class Player;
@@ -30,6 +31,7 @@ private:
     
     std::vector<Block> m_blocks;
     std::vector<std::unique_ptr<Item>> m_items;
+    std::vector<std::unique_ptr<Goomba>> m_goombas;
     
     static constexpr int TILE_SIZE = 16;
     

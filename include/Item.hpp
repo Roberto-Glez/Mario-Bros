@@ -12,6 +12,7 @@ public:
     sf::FloatRect getBounds() const { return m_sprite.getGlobalBounds(); }
 
     bool isCollected() const { return m_collected; }
+    bool isSpawning() const { return m_spawning; }
     void collect();
 
 protected:

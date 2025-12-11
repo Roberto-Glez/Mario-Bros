@@ -11,6 +11,7 @@ public:
     void update(float dt);
     void draw(sf::RenderWindow& window);
     void grow();
+    void bounce();  // Bounce after stomping enemy
     bool isBig() const { return m_isBig; }
     // Método helper para la cámara
     sf::Vector2f getPosition() const;
