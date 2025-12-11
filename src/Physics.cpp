@@ -4,7 +4,7 @@ Physics::Physics()
 {
     // En v3 se usa una estructura de definición y una función de creación
     b2WorldDef worldDef = b2DefaultWorldDef();
-    worldDef.gravity = (b2Vec2){0.0f, 9.8f}; // Llaves para struct C
+    worldDef.gravity = (b2Vec2){0.0f, 15.0f}; // Base gravity
     m_worldId = b2CreateWorld(&worldDef);
 }
 

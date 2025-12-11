@@ -37,7 +37,7 @@ private:
     float m_runTimer;    // Momentum timer
     int m_currentFrame;
     bool m_facingRight;
-    enum class State { Idle, Running, Jumping, Braking } m_state;
+    enum class State { Idle, Running, Jumping, Braking, Crouching } m_state;
 };
 
 #endif // PLAYER_HPP

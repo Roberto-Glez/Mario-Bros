@@ -58,16 +58,18 @@ void Player::handleInput(float dt)
     float desiredVel = 0.0f;
     
     // Acceleration Constants
-    const float WALK_SPEED = 4.0f;
-    const float RUN_SPEED = 8.0f;     // "Faster"
-    const float ACCEL_DELAY = 1.0f;   // 0 to 1.0s: Walk (5 steps approx)
-    const float ACCEL_RAMP = 1.5f;    // 1.0s to 2.5s: Acceleration phase (Total ~10 steps)
+    const float WALK_SPEED = 5.0f;    // Slightly faster walk
+    const float RUN_SPEED = 10.0f;    // Faster run
+    const float ACCEL_DELAY = 0.3f;   // Faster momentum buildup
+    const float ACCEL_RAMP = 0.7f;    // Quicker acceleration to max speed
 
     // Input Handling
     bool isMoving = false;
     bool leftInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A);
     bool rightInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D);
+    bool downInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S);
     bool isSkidding = false;
+    bool isCrouching = downInput && m_isBig && m_canJump; // Crouch only if Big Mario and on ground
 
     if (leftInput) {
         if (vel.x > 0.5f) isSkidding = true;
@@ -103,7 +105,9 @@ void Player::handleInput(float dt)
     }
 
     // Apply Velocity
-    if (isSkidding) {
+    if (isCrouching) {
+        desiredVel = vel.x * 0.92f; // Gradual deceleration while crouching
+    } else if (isSkidding) {
         desiredVel = vel.x * 0.90f; // Braking friction
     } else {
         if (leftInput) desiredVel = -currentSpeed;
@@ -115,6 +119,8 @@ void Player::handleInput(float dt)
     // Check Jump
     if (!m_canJump) {
         m_state = State::Jumping;
+    } else if (isCrouching) {
+        m_state = State::Crouching;
     } else if (isSkidding) {
         m_state = State::Braking;
     } else if (std::abs(vel.x) > 0.1f) {
@@ -128,9 +134,9 @@ void Player::handleInput(float dt)
     float impulse = b2Body_GetMass(m_bodyId) * velChange;
     b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){impulse, 0.0f}, true);
 
-    // Salto
+    // Salto - impulse increased to reach ~3 blocks height
     if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) && m_canJump) {
-        float jumpImpulse = -b2Body_GetMass(m_bodyId) * 6.0f;
+        float jumpImpulse = -b2Body_GetMass(m_bodyId) * 11.0f;
         b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){0.0f, jumpImpulse}, true);
         m_canJump = false;
         m_state = State::Jumping;
@@ -166,6 +172,20 @@ void Player::update(float dt)
          m_canJump = true;
     } else {
          m_canJump = false;
+    }
+
+    // Variable gravity for snappier jumps (Mario-style)
+    // Apply extra downward force when falling or when jump button released
+    bool jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up);
+    
+    if (vel.y > 0.5f) {
+        // Falling - apply extra gravity for faster descent
+        float fallMultiplier = 1.5f;
+        b2Body_ApplyForceToCenter(m_bodyId, (b2Vec2){0.0f, b2Body_GetMass(m_bodyId) * 15.0f * fallMultiplier}, true);
+    } else if (vel.y < -0.5f && !jumpHeld) {
+        // Rising but jump released - cut jump short
+        float lowJumpMultiplier = 2.0f;
+        b2Body_ApplyForceToCenter(m_bodyId, (b2Vec2){0.0f, b2Body_GetMass(m_bodyId) * 15.0f * lowJumpMultiplier}, true);
     }
 
     updateAnimation(dt);
@@ -213,6 +233,10 @@ void Player::updateAnimation(float dt) {
             startFrame = 4; // User said 5,6,7 => Indices 4,5,6
             numFrames = 3;
             break;
+        case State::Crouching:
+            startFrame = 3; // Sprite index 3 (4th sprite) for crouch
+            numFrames = 1;
+            break;
     }
 
     m_animationTimer += dt;
@@ -245,8 +269,8 @@ void Player::updateAnimation(float dt) {
         // - We want Feet (33) to align with Body Bottom (Center + 15).
         // - So Center should align with Sprite 18 (33 - 15).
         // - Let's use Origin 17.5 to center it well.
-        m_sprite.setTextureRect(sf::IntRect(left, 0, 16, 33));
-        m_sprite.setOrigin(16.0f / 2.0f, 17.5f); 
+        m_sprite.setTextureRect(sf::IntRect(left, 0, 18, 36));
+        m_sprite.setOrigin(18.0f / 2.0f, 23.0f); 
     } else {
         // Small Mario Animation
         // Ajuste final V2:
@@ -292,17 +316,15 @@ void Player::grow() {
     // Create new (Taller)
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_dynamicBody;
-    // Keep position (Might need slight Y adjustment upwards to avoid sticking in floor)
-    // Old height 16, New height 32. Center shifts up by 8px.
-    // Box2D origin is center.
-    bodyDef.position = (b2Vec2){pos.x, pos.y - (16.0f / Physics::SCALE / 2.0f)}; 
+    // Adjust Y position upward to account for taller hitbox
+    // Big Mario hitbox: 28x52 pixels (scaled from sprite ~14x26 base * 2)
+    bodyDef.position = (b2Vec2){pos.x, pos.y - (26.0f / Physics::SCALE)}; 
     bodyDef.fixedRotation = true;
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Make Box (16x30 approx, avoid full 32 to reduce snag)
-    // Let's use 16x30
-    b2Polygon box = b2MakeBox((14.0f / 2.0f) / Physics::SCALE, (30.0f / 2.0f) / Physics::SCALE);
+    // Make Box for Big Mario: 28x52 pixels to better match sprite collision
+    b2Polygon box = b2MakeBox((28.0f / 2.0f) / Physics::SCALE, (52.0f / 2.0f) / Physics::SCALE);
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.density = 1.0f;
     shapeDef.friction = 0.3f;
