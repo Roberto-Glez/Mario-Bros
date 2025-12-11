@@ -41,6 +41,10 @@ private:
     float m_width;
     float m_height;
     float m_groundY;
+    
+    // Stomp cooldown to prevent ghost bounces and stomp loops
+    float m_stompCooldown;
+    static constexpr float STOMP_COOLDOWN_TIME = 0.5f;  // 500ms cooldown
 };
 
 #endif // LEVEL_HPP

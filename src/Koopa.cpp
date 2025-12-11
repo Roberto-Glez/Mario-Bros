@@ -62,13 +62,24 @@ void Koopa::update(float dt) {
     }
     
     if (m_koopaState == KoopaState::ShellMoving) {
-        // Shell sliding - animate through sprites 3-5 (indices 2, 3, 4)
+        // Shell sliding - animate through sprites 3-5 using exact coordinates
         m_shellAnimTimer += dt;
         if (m_shellAnimTimer >= 0.05f) {
             m_shellAnimTimer = 0.0f;
-            m_shellFrame = (m_shellFrame + 1) % 3;  // 3 frames: indices 2, 3, 4
-            int shellX = SPRITE_OFFSET_X + (2 + m_shellFrame) * (SPRITE_WIDTH + SPRITE_GAP);
-            m_sprite.setTextureRect(sf::IntRect(shellX, SPRITE_OFFSET_Y, SPRITE_WIDTH, SPRITE_HEIGHT));
+            m_shellFrame = (m_shellFrame + 1) % 3;  // 3 frames: 0, 1, 2
+            
+            // Set sprite based on current frame using exact coordinates
+            if (m_shellFrame == 0) {
+                // Sprite 3
+                m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+            } else if (m_shellFrame == 1) {
+                // Sprite 4
+                m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_4_X, SHELL_SPRITE_4_Y, SHELL_WIDTH, SHELL_HEIGHT));
+            } else {
+                // Sprite 5 (idle, but part of animation) - use same height as other shell sprites
+                int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
+                m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+            }
         }
         
         if (b2Body_IsValid(m_bodyId)) {
@@ -95,9 +106,12 @@ void Koopa::stomp() {
         m_koopaState = KoopaState::Shell;
         m_state = State::Stomped;  // This prevents base Enemy from dying
         
-        // Set shell sprite (sprite 5 = index 4 is idle shell)
+        // Set shell sprite (sprite 5 idle with correct height)
         int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
-        m_sprite.setTextureRect(sf::IntRect(shellX, SPRITE_OFFSET_Y, SPRITE_WIDTH, SPRITE_HEIGHT));
+        m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+        
+        // Adjust origin for shell (shorter sprite, sits on ground)
+        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
         
         // Stop movement
         if (b2Body_IsValid(m_bodyId)) {
@@ -108,6 +122,16 @@ void Koopa::stomp() {
         m_koopaState = KoopaState::ShellMoving;
         m_direction = 1.0f;  // Kick to the right
         
+        // Reset animation state
+        m_shellFrame = 0;
+        m_shellAnimTimer = 0.0f;
+        
+        // Set initial animation sprite (sprite 3 with exact coordinates)
+        m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+        
+        // Adjust origin for shell animation
+        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+        
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetType(m_bodyId, b2_dynamicBody);
             b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){SHELL_SPEED * m_direction, 0.0f});
@@ -116,13 +140,38 @@ void Koopa::stomp() {
         // Stomp moving shell: stop it and set to idle sprite
         m_koopaState = KoopaState::Shell;
         
-        // Reset to idle shell sprite (index 4)
+        // Reset to idle shell sprite with correct height
         int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
-        m_sprite.setTextureRect(sf::IntRect(shellX, SPRITE_OFFSET_Y, SPRITE_WIDTH, SPRITE_HEIGHT));
+        m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, 0.0f});
         }
+    }
+}
+
+void Koopa::kick(float direction) {
+    // Only kick if shell is idle
+    if (m_koopaState != KoopaState::Shell) {
+        return;
+    }
+    
+    // Start moving
+    m_koopaState = KoopaState::ShellMoving;
+    m_direction = direction;
+    
+    // Reset animation state
+    m_shellFrame = 0;
+    m_shellAnimTimer = 0.0f;
+    
+    // Set initial animation sprite (sprite 3)
+    m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+    m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+    
+    if (b2Body_IsValid(m_bodyId)) {
+        b2Body_SetType(m_bodyId, b2_dynamicBody);
+        b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){SHELL_SPEED * m_direction, 0.0f});
     }
 }
 

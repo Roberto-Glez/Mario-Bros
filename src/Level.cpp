@@ -4,7 +4,7 @@
 #include <algorithm>
 
 Level::Level(Physics& physics, float width, float height)
-: m_physics(physics), m_width(width), m_height(height)
+: m_physics(physics), m_width(width), m_height(height), m_stompCooldown(0.0f)
 {
     // Load Texture
     if (!m_texture.loadFromFile("assets/images/blocks.png")) {
@@ -115,6 +115,11 @@ Level::Level(Physics& physics, float width, float height)
 }
 
 void Level::update(float dt) {
+    // Update stomp cooldown
+    if (m_stompCooldown > 0.0f) {
+        m_stompCooldown -= dt;
+    }
+    
     for (auto& block : m_blocks) {
         block.update(dt);
     }
@@ -170,32 +175,54 @@ void Level::checkCollisions(Player& player) {
         }
     }
 
-    // Check Enemy Collisions
-    for (auto& enemy : m_enemies) {
-        if (!enemy->isAlive() || enemy->isStomped()) {
-            continue;
-        }
-        
-        sf::FloatRect enemyBounds = enemy->getBounds();
-        if (pBounds.intersects(enemyBounds)) {
-            sf::Vector2f enemyPos = enemy->getPosition();
-            float playerBottom = pBounds.top + pBounds.height;
-            float enemyTop = enemyBounds.top;
+    // Check Enemy Collisions (skip if in stomp cooldown)
+    if (m_stompCooldown <= 0.0f) {
+        for (auto& enemy : m_enemies) {
+            if (!enemy->isAlive()) {
+                continue;
+            }
             
-            // Stomp condition: Player's feet are near/above enemy's head
-            // AND player center is above enemy center (coming from above)
-            bool feetAboveEnemy = playerBottom <= enemyTop + 16.0f;
-            bool comingFromAbove = pPos.y < enemyPos.y;
-            
-            if (feetAboveEnemy && comingFromAbove) {
-                // Stomp!
-                enemy->stomp();
-                player.bounce();  // Mario bounces after stomping
-                std::cout << "Enemy stomped!" << std::endl;
-                break;  // Only process one stomp per frame
-            } else {
-                // Mario takes damage (for now just log)
-                std::cout << "Mario hit by enemy!" << std::endl;
+            sf::FloatRect enemyBounds = enemy->getBounds();
+            if (pBounds.intersects(enemyBounds)) {
+                sf::Vector2f enemyPos = enemy->getPosition();
+                float playerBottom = pBounds.top + pBounds.height;
+                float enemyTop = enemyBounds.top;
+                
+                // Stomp condition (strict):
+                // 1. Player's feet must be near the top of enemy (within 6px)
+                // 2. Player center must be above enemy center
+                // 3. Player must have horizontal overlap with enemy center area
+                float enemyCenterX = enemyPos.x;
+                float playerCenterX = pPos.x;
+                float horizontalDistance = std::abs(playerCenterX - enemyCenterX);
+                float maxHorizontalDistance = (enemyBounds.width / 2.0f) + 5.0f;  // Some tolerance
+                
+                bool feetAboveEnemy = playerBottom <= enemyTop + 6.0f;  // Stricter: only 6px tolerance
+                bool comingFromAbove = pPos.y < enemyPos.y - 10.0f;  // Must be clearly above
+                bool horizontallyAligned = horizontalDistance < maxHorizontalDistance;
+                
+                if (feetAboveEnemy && comingFromAbove && horizontallyAligned) {
+                    // Stomp!
+                    enemy->stomp();
+                    player.bounce();  // Mario bounces after stomping
+                    m_stompCooldown = STOMP_COOLDOWN_TIME;  // Start cooldown
+                    std::cout << "Enemy stomped!" << std::endl;
+                    break;  // Only process one stomp per frame
+                } else {
+                    // Check if this is a Koopa shell that can be kicked
+                    Koopa* koopa = dynamic_cast<Koopa*>(enemy.get());
+                    if (koopa && koopa->isIdleShell()) {
+                        // Kick direction based on player position relative to shell
+                        float kickDirection = (pPos.x < enemyPos.x) ? 1.0f : -1.0f;
+                        koopa->kick(kickDirection);
+                        m_stompCooldown = STOMP_COOLDOWN_TIME;  // Start cooldown
+                        std::cout << "Shell kicked!" << std::endl;
+                        break;
+                    } else {
+                        // Mario takes damage (for now just log)
+                        std::cout << "Mario hit by enemy!" << std::endl;
+                    }
+                }
             }
         }
     }
