@@ -108,9 +108,10 @@ Level::Level(Physics& physics, float width, float height)
     // Player jumps quite high.
     m_blocks.emplace_back(m_physics, 250.0f, m_groundY - 64.0f);
 
-    // Spawn Goombas - position at ground level (m_groundY is top of ground)
-    m_goombas.push_back(std::make_unique<Goomba>(m_physics, 400.0f, m_groundY));
-    m_goombas.push_back(std::make_unique<Goomba>(m_physics, 550.0f, m_groundY));
+    // Spawn Enemies - position at ground level (m_groundY is top of ground)
+    m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f, m_groundY));
+    m_enemies.push_back(std::make_unique<Goomba>(m_physics, 550.0f, m_groundY));
+    m_enemies.push_back(std::make_unique<Koopa>(m_physics, 700.0f, m_groundY));
 }
 
 void Level::update(float dt) {
@@ -121,16 +122,16 @@ void Level::update(float dt) {
         item->update(dt);
     }
     
-    // Update Goombas
-    for (auto& goomba : m_goombas) {
-        goomba->update(dt);
+    // Update Enemies
+    for (auto& enemy : m_enemies) {
+        enemy->update(dt);
     }
     
-    // Remove dead Goombas
-    m_goombas.erase(
-        std::remove_if(m_goombas.begin(), m_goombas.end(),
-            [](const std::unique_ptr<Goomba>& g) { return !g->isAlive(); }),
-        m_goombas.end());
+    // Remove dead Enemies
+    m_enemies.erase(
+        std::remove_if(m_enemies.begin(), m_enemies.end(),
+            [](const std::unique_ptr<Enemy>& e) { return !e->isAlive(); }),
+        m_enemies.end());
 }
 
 void Level::checkCollisions(Player& player) {
@@ -169,32 +170,32 @@ void Level::checkCollisions(Player& player) {
         }
     }
 
-    // Check Goomba Collisions
-    for (auto& goomba : m_goombas) {
-        if (!goomba->isAlive() || goomba->isSquashed()) {
+    // Check Enemy Collisions
+    for (auto& enemy : m_enemies) {
+        if (!enemy->isAlive() || enemy->isStomped()) {
             continue;
         }
         
-        sf::FloatRect goombaBounds = goomba->getBounds();
-        if (pBounds.intersects(goombaBounds)) {
-            sf::Vector2f goombaPos = goomba->getPosition();
+        sf::FloatRect enemyBounds = enemy->getBounds();
+        if (pBounds.intersects(enemyBounds)) {
+            sf::Vector2f enemyPos = enemy->getPosition();
             float playerBottom = pBounds.top + pBounds.height;
-            float goombaTop = goombaBounds.top;
+            float enemyTop = enemyBounds.top;
             
-            // Stomp condition: Player's feet are near/above Goomba's head
-            // AND player center is above Goomba center (coming from above)
-            bool feetAboveGoomba = playerBottom <= goombaTop + 16.0f;
-            bool comingFromAbove = pPos.y < goombaPos.y;
+            // Stomp condition: Player's feet are near/above enemy's head
+            // AND player center is above enemy center (coming from above)
+            bool feetAboveEnemy = playerBottom <= enemyTop + 16.0f;
+            bool comingFromAbove = pPos.y < enemyPos.y;
             
-            if (feetAboveGoomba && comingFromAbove) {
+            if (feetAboveEnemy && comingFromAbove) {
                 // Stomp!
-                goomba->stomp();
+                enemy->stomp();
                 player.bounce();  // Mario bounces after stomping
-                std::cout << "Goomba stomped!" << std::endl;
+                std::cout << "Enemy stomped!" << std::endl;
                 break;  // Only process one stomp per frame
             } else {
                 // Mario takes damage (for now just log)
-                std::cout << "Mario hit by Goomba!" << std::endl;
+                std::cout << "Mario hit by enemy!" << std::endl;
             }
         }
     }
@@ -210,8 +211,8 @@ void Level::draw(sf::RenderWindow& window)
     for (auto& item : m_items) {
         item->draw(window);
     }
-    for (auto& goomba : m_goombas) {
-        goomba->draw(window);
+    for (auto& enemy : m_enemies) {
+        enemy->draw(window);
     }
 }
 
