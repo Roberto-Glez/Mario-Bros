@@ -220,7 +220,7 @@ void Level::checkCollisions(Player& player) {
                         break;
                     } else {
                         // Mario takes damage (for now just log)
-                        std::cout << "Mario hit by enemy!" << std::endl;
+                        player.takeDamage();
                     }
                 }
             }

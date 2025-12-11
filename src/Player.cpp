@@ -5,6 +5,7 @@
 
 Player::Player(Physics& physics, float startX, float startY)
 : m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false),
+  m_isDead(false), m_isInvulnerable(false), m_invulnerableTimer(0.0f),
   m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
     // ... (Constructor content unchanged) ...
@@ -54,6 +55,8 @@ Player::Player(Physics& physics, float startX, float startY)
 
 void Player::handleInput(float dt)
 {
+    if (m_isDead) return;
+
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
     float desiredVel = 0.0f;
     
@@ -145,6 +148,20 @@ void Player::handleInput(float dt)
 
 void Player::update(float dt)
 {
+    // Invulnerability Timer
+    if (m_isInvulnerable) {
+        m_invulnerableTimer += dt;
+        if (m_invulnerableTimer >= 2.0f) {
+             m_isInvulnerable = false;
+             m_invulnerableTimer = 0.0f;
+             m_sprite.setColor(sf::Color::White); 
+        } else {
+             // Blink effect
+             int blink = (int)(m_invulnerableTimer * 20.0f) % 2;
+             m_sprite.setColor(blink ? sf::Color(255, 255, 255, 100) : sf::Color::White);
+        }
+    }
+
     b2Vec2 pos = b2Body_GetPosition(m_bodyId);
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
 
@@ -285,6 +302,14 @@ void Player::updateAnimation(float dt) {
         m_sprite.setOrigin(16.0f / 2.0f, 10.0f);
     }
 
+    // Special override only for DEAD state
+    if (m_state == State::Dead) {
+         // User requested: Sprite 4 starts at pixel (55, 2). 
+         // Assuming 16x16 size for the dead sprite.
+         m_sprite.setTextureRect(sf::IntRect(55, 2, 16, 16));
+         // Reset origin to match correct center for dying animation
+         m_sprite.setOrigin(16.0f / 2.0f, 10.0f); 
+    }
 }
 
 void Player::draw(sf::RenderWindow& window)
@@ -340,4 +365,90 @@ void Player::bounce() {
     // Set upward velocity directly (negative Y = up)
     b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){vel.x, -6.0f});
     m_state = State::Jumping;
+}
+
+void Player::takeDamage() {
+    if (m_isInvulnerable || m_isDead) return;
+
+    if (m_isBig) {
+        m_isBig = false;
+        m_isInvulnerable = true;
+        m_invulnerableTimer = 0.0f;
+        
+        // Revert to Small Texture
+        m_sprite.setTexture(m_texture);
+        
+        // Revert Physics Body to Small
+        b2Vec2 pos = b2Body_GetPosition(m_bodyId);
+        b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
+        
+        b2DestroyBody(m_bodyId);
+        
+        // Create Small Body
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_dynamicBody;
+        bodyDef.position = pos; 
+        bodyDef.fixedRotation = true;
+        
+        m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
+        
+        // Original Small Box
+        b2Polygon dynamicBox = b2MakeBox((m_width / 2.0f) / Physics::SCALE, (m_height / 2.0f) / Physics::SCALE);
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.density = 1.0f;
+        shapeDef.friction = 0.3f;
+        
+        b2CreatePolygonShape(m_bodyId, &shapeDef, &dynamicBox);
+        
+        b2Body_SetLinearVelocity(m_bodyId, vel);
+        
+        // Sound effect here if we had audio
+    } else {
+        die();
+    }
+}
+
+void Player::die() {
+    if (m_isDead) return;
+    
+    m_isDead = true;
+    m_state = State::Dead;
+    
+    // Jump up
+    b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
+    b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, -10.0f}); // Jump
+    
+    // Disable collisions by destroying shapes but keeping body for logic?
+    // Or just set shape filter.
+    // Box2D v3: we can just destroy shapes.
+    // But b2Body needs shape to have mass? 
+    // If we destroy shape, mass becomes 0? b2Body w/o shape is just a point.
+    // If it's dynamic, it might not move without mass if forces dependent on mass are applied?
+    // Actually gravity is applied as force = m * g. 
+    // We should better use filter to collide with nothing.
+    
+    // Changing filter requires accessing the shape ID.
+    // Since I don't store shape ID, I will just destroy body and create a new one that collides with nothing.
+    
+    b2Vec2 pos = b2Body_GetPosition(m_bodyId);
+    b2DestroyBody(m_bodyId);
+    
+    b2BodyDef bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2_dynamicBody;
+    bodyDef.position = pos;
+    bodyDef.fixedRotation = true;
+     // Set linear velocity
+    b2BodyId newBody = b2CreateBody(m_physics.worldId(), &bodyDef);
+    b2Body_SetLinearVelocity(newBody, (b2Vec2){0.0f, -10.0f});
+
+    // Add shape with interaction filter that hits nothing
+    b2Polygon box = b2MakeBox((m_width / 2.0f) / Physics::SCALE, (m_height / 2.0f) / Physics::SCALE);
+    b2ShapeDef shapeDef = b2DefaultShapeDef();
+    shapeDef.density = 1.0f;
+    shapeDef.filter.categoryBits = 0; // Collide with nothing
+    shapeDef.filter.maskBits = 0;
+    
+    b2CreatePolygonShape(newBody, &shapeDef, &box);
+    
+    m_bodyId = newBody;
 }

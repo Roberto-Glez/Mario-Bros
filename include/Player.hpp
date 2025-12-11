@@ -17,6 +17,11 @@ public:
     sf::Vector2f getPosition() const;
     sf::FloatRect getBounds() const;
 
+    // Damage & Life
+    void takeDamage();
+    bool isDead() const { return m_isDead; }
+    void die();
+
 private:
     void updateAnimation(float dt);
 
@@ -32,13 +37,18 @@ private:
     bool m_canJump;
     bool m_isBig;
 
+    // Death & Invulnerability
+    bool m_isDead;
+    bool m_isInvulnerable;
+    float m_invulnerableTimer;
+
     // Animation state
     float m_animationTimer;
     float m_groundTimer; // To filter jump apex
     float m_runTimer;    // Momentum timer
     int m_currentFrame;
     bool m_facingRight;
-    enum class State { Idle, Running, Jumping, Braking, Crouching } m_state;
+    enum class State { Idle, Running, Jumping, Braking, Crouching, Dead } m_state;
 };
 
 #endif // PLAYER_HPP
