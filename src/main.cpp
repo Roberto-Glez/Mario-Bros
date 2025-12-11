@@ -71,6 +71,10 @@ int main() {
             // Check Death
             if (session->player->isDead()) {
                 currentState = DEATH_ANIM;
+            } else if (session->player->getPosition().y > (float)HEIGHT + 50.0f) {
+                // Fell into void
+                session->player->die(); // Instant death even if big
+                currentState = DEATH_ANIM;
             }
 
         } else if (currentState == DEATH_ANIM) {

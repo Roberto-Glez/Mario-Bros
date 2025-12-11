@@ -326,6 +326,13 @@ sf::FloatRect Player::getBounds() const
     return m_sprite.getGlobalBounds();
 }
 
+b2Vec2 Player::getVelocity() const {
+    if (b2Body_IsValid(m_bodyId)) {
+        return b2Body_GetLinearVelocity(m_bodyId);
+    }
+    return {0.0f, 0.0f};
+}
+
 void Player::grow() {
     if (m_isBig) return; // Already big
 
@@ -415,8 +422,9 @@ void Player::die() {
     m_state = State::Dead;
     
     // Jump up
+    // Jump up
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
-    b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, -10.0f}); // Jump
+    b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, -20.0f}); // Jump (Higher)
     
     // Disable collisions by destroying shapes but keeping body for logic?
     // Or just set shape filter.
@@ -439,7 +447,7 @@ void Player::die() {
     bodyDef.fixedRotation = true;
      // Set linear velocity
     b2BodyId newBody = b2CreateBody(m_physics.worldId(), &bodyDef);
-    b2Body_SetLinearVelocity(newBody, (b2Vec2){0.0f, -10.0f});
+    b2Body_SetLinearVelocity(newBody, (b2Vec2){0.0f, -20.0f}); // Jump (Higher)
 
     // Add shape with interaction filter that hits nothing
     b2Polygon box = b2MakeBox((m_width / 2.0f) / Physics::SCALE, (m_height / 2.0f) / Physics::SCALE);

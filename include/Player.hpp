@@ -16,6 +16,7 @@ public:
     // Método helper para la cámara
     sf::Vector2f getPosition() const;
     sf::FloatRect getBounds() const;
+    b2Vec2 getVelocity() const;
 
     // Damage & Life
     void takeDamage();

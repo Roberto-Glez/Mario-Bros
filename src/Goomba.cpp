@@ -24,11 +24,11 @@ Goomba::Goomba(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox
+    // Create hitbox (Goomba 17x9)
     b2Polygon box = b2MakeOffsetBox(
-        (14.0f / 2.0f) / Physics::SCALE, 
-        (14.0f / 2.0f) / Physics::SCALE,
-        (b2Vec2){0.0f, -(14.0f / 2.0f) / Physics::SCALE},
+        (17.0f / 2.0f) / Physics::SCALE, 
+        (9.0f / 2.0f) / Physics::SCALE,
+        (b2Vec2){0.0f, -(9.0f / 2.0f) / Physics::SCALE},
         0.0f
     );
     b2ShapeDef shapeDef = b2DefaultShapeDef();

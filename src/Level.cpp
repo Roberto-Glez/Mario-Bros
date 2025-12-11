@@ -188,20 +188,26 @@ void Level::checkCollisions(Player& player) {
                 float playerBottom = pBounds.top + pBounds.height;
                 float enemyTop = enemyBounds.top;
                 
-                // Stomp condition (strict):
-                // 1. Player's feet must be near the top of enemy (within 6px)
-                // 2. Player center must be above enemy center
-                // 3. Player must have horizontal overlap with enemy center area
+                // Stomp condition (Improved):
+                // 1. Player must be falling (velocity y > 0)
+                // 2. Player feet must be above the enemy's vertical center (more generous than top edge)
+                // 3. Player must have horizontal overlap
+                
+                b2Vec2 pVel = player.getVelocity();
+                bool isFalling = pVel.y > 0.0f;
+                
+                float enemyCenterY = enemyBounds.top + (enemyBounds.height / 2.0f);
+                bool feetAboveCenter = playerBottom < enemyCenterY + 5.0f; // Allow slightly below center if falling fast
+                
                 float enemyCenterX = enemyPos.x;
                 float playerCenterX = pPos.x;
                 float horizontalDistance = std::abs(playerCenterX - enemyCenterX);
-                float maxHorizontalDistance = (enemyBounds.width / 2.0f) + 5.0f;  // Some tolerance
+                float maxHorizontalDistance = (enemyBounds.width / 2.0f) + 6.0f;  // Generous horizontal overlap
                 
-                bool feetAboveEnemy = playerBottom <= enemyTop + 6.0f;  // Stricter: only 6px tolerance
-                bool comingFromAbove = pPos.y < enemyPos.y - 10.0f;  // Must be clearly above
                 bool horizontallyAligned = horizontalDistance < maxHorizontalDistance;
                 
-                if (feetAboveEnemy && comingFromAbove && horizontallyAligned) {
+                // If falling and reasonably above, count as stomp even if overlapping slightly
+                if (isFalling && feetAboveCenter && horizontallyAligned) {
                     // Stomp!
                     enemy->stomp();
                     player.bounce();  // Mario bounces after stomping
@@ -214,7 +220,11 @@ void Level::checkCollisions(Player& player) {
                     if (koopa && koopa->isIdleShell()) {
                         // Kick direction based on player position relative to shell
                         float kickDirection = (pPos.x < enemyPos.x) ? 1.0f : -1.0f;
-                        koopa->kick(kickDirection);
+                        
+                        // Pass player horizontal speed for dynamic kick
+                        float playerSpeed = std::abs(pVel.x);
+                        koopa->kick(kickDirection, playerSpeed);
+                        
                         m_stompCooldown = STOMP_COOLDOWN_TIME;  // Start cooldown
                         std::cout << "Shell kicked!" << std::endl;
                         break;

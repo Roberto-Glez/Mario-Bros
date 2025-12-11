@@ -14,7 +14,7 @@ public:
     
     bool isShell() const { return m_koopaState == KoopaState::Shell || m_koopaState == KoopaState::ShellMoving; }
     bool isIdleShell() const { return m_koopaState == KoopaState::Shell; }
-    void kick(float direction);  // Kick shell in a direction (-1 left, 1 right)
+    void kick(float direction, float kickerAbsVelocityX = 0.0f);  // Kick shell in a direction (-1 left, 1 right)
 
 protected:
     void updateAnimation(float dt) override;

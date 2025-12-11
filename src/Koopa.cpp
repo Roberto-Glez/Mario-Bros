@@ -28,11 +28,11 @@ Koopa::Koopa(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox (taller for Koopa)
+    // Create hitbox (Koopa 17x15)
     b2Polygon box = b2MakeOffsetBox(
-        (14.0f / 2.0f) / Physics::SCALE, 
-        (24.0f / 2.0f) / Physics::SCALE,
-        (b2Vec2){0.0f, -(24.0f / 2.0f) / Physics::SCALE},
+        (17.0f / 2.0f) / Physics::SCALE, 
+        (15.0f / 2.0f) / Physics::SCALE,
+        (b2Vec2){0.0f, -(15.0f / 2.0f) / Physics::SCALE},
         0.0f
     );
     b2ShapeDef shapeDef = b2DefaultShapeDef();
@@ -151,7 +151,7 @@ void Koopa::stomp() {
     }
 }
 
-void Koopa::kick(float direction) {
+void Koopa::kick(float direction, float kickerAbsVelocityX) {
     // Only kick if shell is idle
     if (m_koopaState != KoopaState::Shell) {
         return;
@@ -171,7 +171,13 @@ void Koopa::kick(float direction) {
     
     if (b2Body_IsValid(m_bodyId)) {
         b2Body_SetType(m_bodyId, b2_dynamicBody);
-        b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){SHELL_SPEED * m_direction, 0.0f});
+        
+        // Calculate speed
+        float baseSpeed = 8.0f; // Stronger base kick
+        float addedSpeed = kickerAbsVelocityX * 0.8f; // Transfer momentum
+        float finalSpeed = baseSpeed + addedSpeed;
+        
+        b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){finalSpeed * m_direction, 0.0f});
     }
 }
 
