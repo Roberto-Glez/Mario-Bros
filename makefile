@@ -8,6 +8,7 @@ LIBS := -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio -lbox2d
 
 # Archivos
 CPP_FILES := $(wildcard $(SRC_DIR)/*.cpp)
+HPP_FILES := $(wildcard $(INC_DIR)/*.hpp)
 EXE_FILE := $(BIN_DIR)/mario_bros.exe
 
 # Compilador
@@ -18,7 +19,7 @@ CXXFLAGS := -I$(INC_DIR) -Wall -std=c++17
 all: $(EXE_FILE)
 
 # Regla para compilar
-$(EXE_FILE): $(CPP_FILES)
+$(EXE_FILE): $(CPP_FILES) $(HPP_FILES)
 	mkdir -p $(BIN_DIR)
 	$(CXX) $(CPP_FILES) -o $@ $(CXXFLAGS) $(LIBS)
 

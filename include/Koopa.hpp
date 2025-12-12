@@ -27,19 +27,21 @@ private:
     float m_shellAnimTimer;
     
     // Sprite dimensions (from spritesheet)
-    static constexpr int SPRITE_WIDTH = 17;
-    static constexpr int SPRITE_HEIGHT = 28;
-    static constexpr int SPRITE_OFFSET_X = 123;
-    static constexpr int SPRITE_OFFSET_Y = 2;
-    static constexpr int SPRITE_GAP = 7;  // Gap between sprites
+    // Sprite dimensions (from spritesheet)
+    static constexpr int SPRITE_WIDTH = 21;
+    static constexpr int SPRITE_HEIGHT = 32;
+    static constexpr int SPRITE_OFFSET_X = 121;
+    static constexpr int SPRITE_OFFSET_Y = 0;
+    static constexpr int SPRITE_GAP = 3;  // Gap between sprites
     
     // Shell sprite positions (exact pixel coordinates)
-    static constexpr int SHELL_SPRITE_3_X = 170;
-    static constexpr int SHELL_SPRITE_3_Y = 11;
-    static constexpr int SHELL_SPRITE_4_X = 195;
-    static constexpr int SHELL_SPRITE_4_Y = 12;
-    static constexpr int SHELL_WIDTH = 17;
-    static constexpr int SHELL_HEIGHT = 16;  // Shell is shorter than walking Koopa
+    // Shell sprite positions (exact pixel coordinates)
+    static constexpr int SHELL_SPRITE_3_X = 169;
+    static constexpr int SHELL_SPRITE_3_Y = 8;
+    static constexpr int SHELL_SPRITE_4_X = 194;
+    static constexpr int SHELL_SPRITE_4_Y = 9;
+    static constexpr int SHELL_WIDTH = 23;
+    static constexpr int SHELL_HEIGHT = 26;  // Shell is shorter than walking Koopa
     
     static constexpr float SHELL_SPEED = 5.0f;
 };

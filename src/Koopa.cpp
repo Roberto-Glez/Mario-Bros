@@ -28,9 +28,9 @@ Koopa::Koopa(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox (Koopa 17x15)
+    // Create hitbox (Koopa ~21x15)
     b2Polygon box = b2MakeOffsetBox(
-        (17.0f / 2.0f) / Physics::SCALE, 
+        (21.0f / 2.0f) / Physics::SCALE, 
         (15.0f / 2.0f) / Physics::SCALE,
         (b2Vec2){0.0f, -(15.0f / 2.0f) / Physics::SCALE},
         b2MakeRot(0.0f)
@@ -128,7 +128,7 @@ void Koopa::stomp() {
         m_sprite.setTextureRect(sf::IntRect({shellX, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
         
         // Adjust origin for shell (shorter sprite, sits on ground)
-        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT - 4.0f});
         
         // Stop movement
         if (b2Body_IsValid(m_bodyId)) {
@@ -147,7 +147,7 @@ void Koopa::stomp() {
         m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
         
         // Adjust origin for shell animation
-        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT - 4.0f});
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetType(m_bodyId, b2_dynamicBody);
@@ -160,7 +160,7 @@ void Koopa::stomp() {
         // Reset to idle shell sprite with correct height
         int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
         m_sprite.setTextureRect(sf::IntRect({shellX, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
-        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT - 4.0f});
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, 0.0f});
@@ -184,7 +184,7 @@ void Koopa::kick(float direction, float kickerAbsVelocityX) {
     
     // Set initial animation sprite (sprite 3)
     m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
-    m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
+    m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT - 4.0f});
     
     if (b2Body_IsValid(m_bodyId)) {
         b2Body_SetType(m_bodyId, b2_dynamicBody);

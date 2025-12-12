@@ -13,11 +13,12 @@ protected:
 
 private:
     // Sprite dimensions (from spritesheet)
-    static constexpr int SPRITE_WIDTH = 17;
-    static constexpr int SPRITE_HEIGHT = 17;
-    static constexpr int SPRITE_OFFSET_X = 2;
-    static constexpr int SPRITE_OFFSET_Y = 10;
-    static constexpr int SPRITE_GAP = 5;
+    
+    static constexpr int SPRITE_WIDTH = 21;
+    static constexpr int SPRITE_HEIGHT = 23;
+    static constexpr int SPRITE_OFFSET_X = 0;
+    static constexpr int SPRITE_OFFSET_Y = 6;
+    static constexpr int SPRITE_GAP = 1;
 };
 
 #endif // GOOMBA_HPP

@@ -12,7 +12,7 @@ Goomba::Goomba(Physics& physics, float x, float y)
     
     // Set initial frame
     m_sprite.setTextureRect(sf::IntRect({SPRITE_OFFSET_X, SPRITE_OFFSET_Y}, {SPRITE_WIDTH, SPRITE_HEIGHT}));
-    m_sprite.setOrigin({SPRITE_WIDTH / 2.0f, SPRITE_HEIGHT});
+    m_sprite.setOrigin({SPRITE_WIDTH / 2.0f, SPRITE_HEIGHT - 2.0f});
     m_sprite.setScale({2.0f, 2.0f});
     m_sprite.setPosition({x, y});
     
@@ -24,9 +24,9 @@ Goomba::Goomba(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox (Goomba 17x9)
+    // Create hitbox (Goomba ~21x9)
     b2Polygon box = b2MakeOffsetBox(
-        (17.0f / 2.0f) / Physics::SCALE, 
+        (21.0f / 2.0f) / Physics::SCALE, 
         (9.0f / 2.0f) / Physics::SCALE,
         (b2Vec2){0.0f, -(9.0f / 2.0f) / Physics::SCALE},
         b2MakeRot(0.0f)
