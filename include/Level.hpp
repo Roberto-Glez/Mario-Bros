@@ -37,6 +37,7 @@ private:
   sf::VertexArray m_groundVertices;
   sf::VertexArray m_groundVertices2; // Sección alternativa de suelo
   sf::VertexArray m_groundVertices3; // Tercera sección de suelo desde X=1216
+  sf::VertexArray m_groundVertices4; // Cuarta sección de suelo desde X=4800
   sf::Texture m_texture;
   sf::Texture m_texture2; // Textura de plataformas.png
 
