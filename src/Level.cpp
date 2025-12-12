@@ -99,22 +99,17 @@ Level::Level(Physics &physics, float width, float height)
   m_blocks.emplace_back(m_physics, 2700.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 3000.0f, m_groundY - 64.0f);
 
-  // Enemigos distribuidos a lo largo del nivel (DESACTIVADOS TEMPORALMENTE)
-  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f,
-  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
-  // 550.0f, m_groundY)); m_enemies.push_back(std::make_unique<Koopa>(m_physics,
-  // 700.0f, m_groundY));
-  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1000.0f,
-  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
-  // 1300.0f, m_groundY));
-  // m_enemies.push_back(std::make_unique<Koopa>(m_physics, 1600.0f,
-  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
-  // 1900.0f, m_groundY));
-  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2200.0f,
-  // m_groundY)); m_enemies.push_back(std::make_unique<Koopa>(m_physics,
-  // 2500.0f, m_groundY));
-  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2800.0f,
-  // m_groundY));
+  // Enemigos distribuidos a lo largo del nivel
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 550.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 700.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1000.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1300.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 1600.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1900.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2200.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 2500.0f, m_groundY));
+  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2800.0f, m_groundY));
   // Plataforma sólida naranja en X=320, 96px arriba del suelo (3 bloques de
   // ancho) Usamos UN SOLO cuerpo físico para evitar ghost collisions
   {
@@ -273,10 +268,19 @@ void Level::checkCollisions(Player &player) {
         continue;
       }
       
-      // Skip dying Koopa shells (hit by fireball)
-      Koopa *dyingKoopa = dynamic_cast<Koopa *>(enemy.get());
-      if (dyingKoopa && dyingKoopa->isStomped()) {
+      // Skip dying enemies (except Koopa shells which need physical interaction)
+      // Check if it's a Koopa to allow shell interactions even if stomped
+      Koopa *koopaEnemy = dynamic_cast<Koopa *>(enemy.get());
+      bool isKoopaShell = (koopaEnemy && koopaEnemy->isShell());
+
+      // If it's stomped and NOT a shell, skip it (standard behavior)
+      if (enemy->isStomped() && !isKoopaShell) {
         continue;
+      }
+
+      // If it IS a shell, but it's dying (falling off screen), skip it
+      if (isKoopaShell && koopaEnemy->isStomped() && !koopaEnemy->isShell()) {
+           continue; 
       }
 
       sf::FloatRect enemyBounds = enemy->getBounds();
