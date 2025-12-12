@@ -1637,6 +1637,100 @@ Level::Level(Physics &physics, float width, float height)
     decoration.setColor(sf::Color(100, 150, 255));       // Tinte azul
     m_decorations.push_back(decoration);
   }
+
+  // Cargar textura de planta trampa
+  if (!m_trapTexture.loadFromFile("assets/images/trampa.png")) {
+    std::cerr << "Error loading trampa.png" << std::endl;
+  }
+
+  // Bloques asesinos desde X=2272 hasta X=2688, al ras del suelo
+  for (float x = 2272.0f; x < 2688.0f; x += 32.0f) {
+    // Use the explicit constructor we added to KillBlock
+    KillBlock kBlock(m_trapTexture);
+    kBlock.x = x;
+    kBlock.y = m_groundY - 32.0f; // Al ras del suelo (bajado 1 bloque)
+    kBlock.width = 32.0f;
+    kBlock.height = 32.0f;
+
+    // Physics Body (Static)
+    b2BodyDef bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2_staticBody;
+    bodyDef.position =
+        (b2Vec2){(kBlock.x + kBlock.width / 2.0f) / Physics::SCALE,
+                 (kBlock.y + kBlock.height / 2.0f) / Physics::SCALE};
+    kBlock.bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
+
+    b2Polygon box = b2MakeBox((kBlock.width / 2.0f) / Physics::SCALE,
+                              (kBlock.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef shapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(kBlock.bodyId, &shapeDef, &box);
+
+    // Visual Shape (Optional now, but kept for debug or fallback)
+    kBlock.shape.setSize({kBlock.width, kBlock.height});
+    kBlock.shape.setPosition({kBlock.x, kBlock.y});
+    kBlock.shape.setFillColor(sf::Color::Red);
+
+    // Sprite Configuration
+    // Texture already set in constructor
+    // Crop: from (26, 286) with size 434x173
+    kBlock.sprite.setTextureRect(sf::IntRect({26, 286}, {434, 173}));
+
+    // Scale to fit 32x32 block
+    // Desired / Original
+    float scaleX = 32.0f / 434.0f;
+    float scaleY = 32.0f / 173.0f;
+    kBlock.sprite.setScale({scaleX, scaleY});
+
+    kBlock.sprite.setPosition({kBlock.x, kBlock.y});
+
+    m_killBlocks.push_back(kBlock);
+  }
+
+  // Grupos de bloques trampa elevados (15 bloques de altura desde el suelo)
+  float trapHeightY = m_groundY - (15 * 32.0f);
+  std::vector<float> startXs = {4128.0f, 4320.0f, 4512.0f};
+
+  for (float startX : startXs) {
+    // 3 bloques por grupo
+    for (int i = 0; i < 3; ++i) {
+      float x = startX + (i * 32.0f);
+
+      KillBlock kBlock(m_trapTexture);
+      kBlock.x = x;
+      kBlock.y = trapHeightY;
+      kBlock.width = 32.0f;
+      kBlock.height = 32.0f;
+
+      // Physics Body (Static)
+      b2BodyDef bodyDef = b2DefaultBodyDef();
+      bodyDef.type = b2_staticBody;
+      bodyDef.position =
+          (b2Vec2){(kBlock.x + kBlock.width / 2.0f) / Physics::SCALE,
+                   (kBlock.y + kBlock.height / 2.0f) / Physics::SCALE};
+      kBlock.bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
+
+      b2Polygon box = b2MakeBox((kBlock.width / 2.0f) / Physics::SCALE,
+                                (kBlock.height / 2.0f) / Physics::SCALE);
+      b2ShapeDef shapeDef = b2DefaultShapeDef();
+      b2CreatePolygonShape(kBlock.bodyId, &shapeDef, &box);
+
+      // Visual Shape
+      kBlock.shape.setSize({kBlock.width, kBlock.height});
+      kBlock.shape.setPosition({kBlock.x, kBlock.y});
+      kBlock.shape.setFillColor(sf::Color::Red);
+
+      // Sprite Configuration
+      kBlock.sprite.setTextureRect(sf::IntRect({26, 286}, {434, 173}));
+
+      float scaleX = 32.0f / 434.0f;
+      float scaleY = 32.0f / 173.0f;
+      kBlock.sprite.setScale({scaleX, scaleY});
+
+      kBlock.sprite.setPosition({kBlock.x, kBlock.y});
+
+      m_killBlocks.push_back(kBlock);
+    }
+  }
 }
 
 void Level::update(float dt) {
@@ -1712,6 +1806,16 @@ void Level::checkCollisions(Player &player) {
   // Define a small sensor box above the player's head
   sf::FloatRect headRect({pPos.x - 5, pBounds.position.y - 5}, {10, 10});
 
+  // Check KillBlock collisions
+  for (const auto &kBlock : m_killBlocks) {
+    sf::FloatRect blockBounds({kBlock.x, kBlock.y},
+                              {kBlock.width, kBlock.height});
+    // Slightly expand block bounds to ensure touch is registered
+    if (player.getBounds().findIntersection(blockBounds)) {
+      player.die();
+    }
+  }
+
   // Check block collisions with Fire Flower logic
   for (size_t i = 0; i < m_blocks.size(); ++i) {
     auto &block = m_blocks[i];
@@ -1786,19 +1890,24 @@ void Level::checkCollisions(Player &player) {
 
       // Custom Hitbox Logic: "Strict Stomp"
       sf::Vector2f enemyPos = enemy->getPosition();
-      
+
       // Damage Hitbox: Very Wide (24) to ensure any side contact is lethal.
-      // Sprite is ~21 wide. 24 extends slightly beyond visual to punish side touches.
-      float dmgW = 24.0f; 
+      // Sprite is ~21 wide. 24 extends slightly beyond visual to punish side
+      // touches.
+      float dmgW = 24.0f;
       float dmgH = 18.0f; // Body height
-      sf::FloatRect damageBox({enemyPos.x - dmgW/2.0f, enemyPos.y - dmgH}, {dmgW, dmgH});
-      
+      sf::FloatRect damageBox({enemyPos.x - dmgW / 2.0f, enemyPos.y - dmgH},
+                              {dmgW, dmgH});
+
       // Stomp Hitbox: Very Narrow (12) and Top Only.
       // You must land ALMOST CENTERED on the head.
-      // If you hit the "shoulder" (side-top), you miss this box and hit damageBox instead.
-      float stompW = 12.0f; 
+      // If you hit the "shoulder" (side-top), you miss this box and hit
+      // damageBox instead.
+      float stompW = 12.0f;
       float stompH = 6.0f;
-      sf::FloatRect stompBox({enemyPos.x - stompW/2.0f, enemyPos.y - dmgH - stompH}, {stompW, stompH});
+      sf::FloatRect stompBox(
+          {enemyPos.x - stompW / 2.0f, enemyPos.y - dmgH - stompH},
+          {stompW, stompH});
 
       // Players velocity
       b2Vec2 pVel = player.getVelocity();
@@ -1807,26 +1916,27 @@ void Level::checkCollisions(Player &player) {
 
       // Check Stomp Intersection First
       if (isFalling && pBounds.findIntersection(stompBox)) {
-          enemy->stomp();
-          player.bounce();
-          m_stompCooldown = STOMP_COOLDOWN_TIME;
-          std::cout << "Enemy stomped (Strict Custom Hitbox)!" << std::endl;
-          break;
+        enemy->stomp();
+        player.bounce();
+        m_stompCooldown = STOMP_COOLDOWN_TIME;
+        std::cout << "Enemy stomped (Strict Custom Hitbox)!" << std::endl;
+        break;
       }
       // Check Damage Intersection Second
       else if (pBounds.findIntersection(damageBox)) {
-          Koopa *koopa = dynamic_cast<Koopa *>(enemy.get());
-          if (koopa && koopa->isIdleShell()) {
-            float kickDirection = (player.getPosition().x < enemyPos.x) ? 1.0f : -1.0f;
-            float playerSpeed = std::abs(pVel.x);
-            koopa->kick(kickDirection, playerSpeed);
-            m_stompCooldown = STOMP_COOLDOWN_TIME;
-            std::cout << "Shell kicked!" << std::endl;
-            break;
-          } else {
-            // Only take damage if touching the narrow "core" box
-            player.takeDamage();
-          }
+        Koopa *koopa = dynamic_cast<Koopa *>(enemy.get());
+        if (koopa && koopa->isIdleShell()) {
+          float kickDirection =
+              (player.getPosition().x < enemyPos.x) ? 1.0f : -1.0f;
+          float playerSpeed = std::abs(pVel.x);
+          koopa->kick(kickDirection, playerSpeed);
+          m_stompCooldown = STOMP_COOLDOWN_TIME;
+          std::cout << "Shell kicked!" << std::endl;
+          break;
+        } else {
+          // Only take damage if touching the narrow "core" box
+          player.takeDamage();
+        }
       }
     }
   }
@@ -1894,6 +2004,11 @@ void Level::draw(sf::RenderWindow &window) {
     window.draw(plat.vertices, &m_texture);
   }
 
+  // Dibujar Bloques Asesinos
+  for (const auto &kBlock : m_killBlocks) {
+    window.draw(kBlock.sprite);
+  }
+
   // Marcadores de debug para identificar límites de pantalla
   // Cada pantalla es de 800px de ancho, hay 8 pantallas
   static constexpr float SCREEN_WIDTH = 800.0f;
@@ -1929,13 +2044,13 @@ void Level::draw(sf::RenderWindow &window) {
     marker.setPosition({screenEndX, 0.0f});
     window.draw(marker);
 
-    // Esquina inferior izquierda (encima del suelo)
-    marker.setPosition({screenStartX, m_groundY - MARKER_SIZE});
-    window.draw(marker);
+    // Esquina inferior izquierda (encima del suelo) - REMOVIDO
+    // marker.setPosition({screenStartX, m_groundY - MARKER_SIZE});
+    // window.draw(marker);
 
-    // Esquina inferior derecha (encima del suelo)
-    marker.setPosition({screenEndX, m_groundY - MARKER_SIZE});
-    window.draw(marker);
+    // Esquina inferior derecha (encima del suelo) - REMOVIDO
+    // marker.setPosition({screenEndX, m_groundY - MARKER_SIZE});
+    // window.draw(marker);
   }
 }
 

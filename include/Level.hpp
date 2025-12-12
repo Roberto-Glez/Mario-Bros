@@ -66,8 +66,23 @@ private:
   };
   std::vector<Platform> m_platforms;
 
+  // Bloques que matan al contacto
+  struct KillBlock {
+    b2BodyId bodyId;
+    sf::RectangleShape shape;
+    sf::Sprite sprite;
+    float x, y, width, height;
+
+    // Explicit constructor to initialize the Sprite with a texture reference
+    // This bypasses the need for a default Sprite constructor if one is
+    // missing.
+    KillBlock(const sf::Texture &texture) : sprite(texture) {}
+  };
+  std::vector<KillBlock> m_killBlocks;
+
   // Decoraciones de fondo
   sf::Texture m_plantasTexture;
+  sf::Texture m_trapTexture;
   std::vector<sf::Sprite> m_decorations;
 };
 
