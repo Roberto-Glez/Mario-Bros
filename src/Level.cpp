@@ -7,58 +7,58 @@ Level::Level(Physics &physics, float width, float height)
     : m_physics(physics), m_width(width), m_height(height),
       m_stompCooldown(0.0f) {
   // Load Texture
-  if (!m_texture.loadFromFile("assets/images/blocks.png")) {
-    std::cerr << "Error loading blocks.png" << std::endl;
+  if (!m_texture.loadFromFile("assets/images/tilesets.png")) {
+    std::cerr << "Error loading tilesets.png" << std::endl;
   }
 
   // Config Setup
   m_groundY = height - 32.0f;
 
-  // Usar LEVEL_WIDTH para el suelo (nivel extendido)
-  int numTilesX = static_cast<int>(LEVEL_WIDTH / TILE_SIZE) + 1;
-  int numTilesY = 2; // Depth of ground
+  // Usar tiles de 32x32 en pantalla (sprite 16x16 escalado a 2x)
+  static constexpr int DISPLAY_TILE_SIZE =
+      32;                                  // Tamaño en pantalla (escalado 2x)
+  static constexpr int TEX_TILE_SIZE = 16; // Tamaño del sprite en textura
+  int numTilesX = static_cast<int>(LEVEL_WIDTH / DISPLAY_TILE_SIZE) + 1;
 
   m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
-  m_groundVertices.resize(numTilesX * numTilesY * 6);
+  m_groundVertices.resize(numTilesX * 6); // Un quad por columna
 
-  int texU = 0;
-  int texV = 0;
+  int texU = 80;
+  int texV = 176;
 
   for (int i = 0; i < numTilesX; ++i) {
-    for (int j = 0; j < numTilesY; ++j) {
-      sf::Vertex *tri = &m_groundVertices[(i * numTilesY + j) * 6];
+    sf::Vertex *tri = &m_groundVertices[i * 6];
 
-      float x = i * TILE_SIZE;
-      float y = m_groundY + j * TILE_SIZE;
+    float x = i * DISPLAY_TILE_SIZE;
+    float y = m_groundY;
 
-      // Quad positions
-      sf::Vector2f p0(x, y);
-      sf::Vector2f p1(x + TILE_SIZE, y);
-      sf::Vector2f p2(x + TILE_SIZE, y + TILE_SIZE);
-      sf::Vector2f p3(x, y + TILE_SIZE);
+    // Quad positions (32x32 en pantalla)
+    sf::Vector2f p0(x, y);
+    sf::Vector2f p1(x + DISPLAY_TILE_SIZE, y);
+    sf::Vector2f p2(x + DISPLAY_TILE_SIZE, y + DISPLAY_TILE_SIZE);
+    sf::Vector2f p3(x, y + DISPLAY_TILE_SIZE);
 
-      // Texture Coords
-      sf::Vector2f t0((float)texU, (float)texV);
-      sf::Vector2f t1((float)texU + TILE_SIZE, (float)texV);
-      sf::Vector2f t2((float)texU + TILE_SIZE, (float)texV + TILE_SIZE);
-      sf::Vector2f t3((float)texU, (float)texV + TILE_SIZE);
+    // Texture Coords (sprite de 16x16 en posición 80,176)
+    sf::Vector2f t0((float)texU, (float)texV);
+    sf::Vector2f t1((float)texU + TEX_TILE_SIZE, (float)texV);
+    sf::Vector2f t2((float)texU + TEX_TILE_SIZE, (float)texV + TEX_TILE_SIZE);
+    sf::Vector2f t3((float)texU, (float)texV + TEX_TILE_SIZE);
 
-      // Triangle 1 (0, 1, 2)
-      tri[0].position = p0;
-      tri[0].texCoords = t0;
-      tri[1].position = p1;
-      tri[1].texCoords = t1;
-      tri[2].position = p2;
-      tri[2].texCoords = t2;
+    // Triangle 1 (0, 1, 2)
+    tri[0].position = p0;
+    tri[0].texCoords = t0;
+    tri[1].position = p1;
+    tri[1].texCoords = t1;
+    tri[2].position = p2;
+    tri[2].texCoords = t2;
 
-      // Triangle 2 (2, 3, 0)
-      tri[3].position = p2;
-      tri[3].texCoords = t2;
-      tri[4].position = p3;
-      tri[4].texCoords = t3;
-      tri[5].position = p0;
-      tri[5].texCoords = t0;
-    }
+    // Triangle 2 (2, 3, 0)
+    tri[3].position = p2;
+    tri[3].texCoords = t2;
+    tri[4].position = p3;
+    tri[4].texCoords = t3;
+    tri[5].position = p0;
+    tri[5].texCoords = t0;
   }
 
   // Cuerpo estático Box2D v3
@@ -93,28 +93,57 @@ Level::Level(Physics &physics, float width, float height)
   b2CreatePolygonShape(wallId, &wallShapeDef, &wallBox);
 
   // Bloques distribuidos a lo largo del nivel extendido
-  m_blocks.emplace_back(m_physics, 250.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 600.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 900.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 1200.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 1500.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 1800.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 2100.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 2400.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 2700.0f, m_groundY - 64.0f);
   m_blocks.emplace_back(m_physics, 3000.0f, m_groundY - 64.0f);
 
-  // Enemigos distribuidos a lo largo del nivel
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 550.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 700.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1000.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1300.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 1600.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1900.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2200.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Koopa>(m_physics, 2500.0f, m_groundY));
-  m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2800.0f, m_groundY));
+  // Enemigos distribuidos a lo largo del nivel (DESACTIVADOS TEMPORALMENTE)
+  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f,
+  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
+  // 550.0f, m_groundY)); m_enemies.push_back(std::make_unique<Koopa>(m_physics,
+  // 700.0f, m_groundY));
+  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 1000.0f,
+  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
+  // 1300.0f, m_groundY));
+  // m_enemies.push_back(std::make_unique<Koopa>(m_physics, 1600.0f,
+  // m_groundY)); m_enemies.push_back(std::make_unique<Goomba>(m_physics,
+  // 1900.0f, m_groundY));
+  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2200.0f,
+  // m_groundY)); m_enemies.push_back(std::make_unique<Koopa>(m_physics,
+  // 2500.0f, m_groundY));
+  // m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2800.0f,
+  // m_groundY));
+  // Plataforma sólida naranja en X=320, 96px arriba del suelo (3 bloques de
+  // ancho) Usamos UN SOLO cuerpo físico para evitar ghost collisions
+  {
+    Platform plat;
+    plat.x = 320.0f;
+    plat.y = m_groundY - 96.0f; // 96px arriba del suelo
+    plat.width = 96.0f;         // 3 bloques de 32px = 96px total
+    plat.height = 32.0f;
+
+    // Cuerpo físico estático (uno solo para toda la plataforma)
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    // Visual naranja (dibuja los 3 bloques como uno solo)
+    plat.shape.setSize({plat.width, plat.height});
+    plat.shape.setPosition({plat.x, plat.y});
+    plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
+
+    m_platforms.push_back(plat);
+  }
 }
 
 void Level::update(float dt) {
@@ -294,6 +323,36 @@ void Level::checkCollisions(Player &player) {
 }
 
 void Level::draw(sf::RenderWindow &window) {
+  // Dibujar fondo de tablero de ajedrez (cuadros de 32x32)
+  // Alineado desde el suelo hacia arriba
+  static constexpr float CHECKER_SIZE = 32.0f;
+  int numCols = static_cast<int>(LEVEL_WIDTH / CHECKER_SIZE) + 1;
+
+  // Calcular cuántas filas desde el suelo hacia arriba
+  float bottomY = m_groundY - CHECKER_SIZE; // Última fila termina en el suelo
+  int numRows = static_cast<int>(m_groundY / CHECKER_SIZE) + 1;
+
+  sf::RectangleShape checker({CHECKER_SIZE, CHECKER_SIZE});
+
+  for (int row = 0; row < numRows; ++row) {
+    // Calcular Y desde el suelo hacia arriba
+    float y = bottomY - (row * CHECKER_SIZE);
+    if (y < -CHECKER_SIZE)
+      break; // No dibujar fuera de pantalla
+
+    for (int col = 0; col < numCols; ++col) {
+      // Alternar colores como tablero de ajedrez
+      if ((row + col) % 2 == 0) {
+        checker.setFillColor(sf::Color::White);
+      } else {
+        checker.setFillColor(sf::Color::Black);
+      }
+      checker.setPosition({col * CHECKER_SIZE, y});
+      window.draw(checker);
+    }
+  }
+
+  // Dibujar suelo
   window.draw(m_groundVertices, &m_texture);
 
   for (auto &block : m_blocks) {
@@ -307,6 +366,51 @@ void Level::draw(sf::RenderWindow &window) {
   }
   for (auto &fireball : m_fireballs) {
     fireball->draw(window);
+  }
+
+  // Dibujar plataformas sólidas
+  for (auto &plat : m_platforms) {
+    window.draw(plat.shape);
+  }
+
+  // Marcadores de debug para identificar límites de pantalla
+  // Cada pantalla es de 800px de ancho, hay 4 pantallas
+  static constexpr float SCREEN_WIDTH = 800.0f;
+  static constexpr float SCREEN_HEIGHT = 600.0f;
+  static constexpr int NUM_SCREENS = 4;
+  static constexpr float MARKER_SIZE = 32.0f;
+
+  sf::RectangleShape marker({MARKER_SIZE, MARKER_SIZE});
+
+  // Colores diferentes para cada pantalla
+  sf::Color screenColors[NUM_SCREENS] = {
+      sf::Color::Red,   // Pantalla 1
+      sf::Color::Green, // Pantalla 2
+      sf::Color::Blue,  // Pantalla 3
+      sf::Color::Yellow // Pantalla 4
+  };
+
+  for (int screen = 0; screen < NUM_SCREENS; ++screen) {
+    float screenStartX = screen * SCREEN_WIDTH;
+    float screenEndX = screenStartX + SCREEN_WIDTH - MARKER_SIZE;
+
+    marker.setFillColor(screenColors[screen]);
+
+    // Esquina superior izquierda
+    marker.setPosition({screenStartX, 0.0f});
+    window.draw(marker);
+
+    // Esquina superior derecha
+    marker.setPosition({screenEndX, 0.0f});
+    window.draw(marker);
+
+    // Esquina inferior izquierda (encima del suelo)
+    marker.setPosition({screenStartX, m_groundY - MARKER_SIZE});
+    window.draw(marker);
+
+    // Esquina inferior derecha (encima del suelo)
+    marker.setPosition({screenEndX, m_groundY - MARKER_SIZE});
+    window.draw(marker);
   }
 }
 
