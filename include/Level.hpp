@@ -8,6 +8,7 @@
 #include "Physics.hpp"
 #include "Block.hpp"
 #include "Item.hpp"
+#include "FireFlower.hpp"
 #include "Enemy.hpp"
 #include "Goomba.hpp"
 #include "Koopa.hpp"

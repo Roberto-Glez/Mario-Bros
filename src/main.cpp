@@ -20,6 +20,7 @@ struct GameSession {
 
 int main() {
     const unsigned int WIDTH = 800;
+    const unsigned int LEVEL_WIDTH = 2000;  // Ancho del nivel más grande que la ventana
     const unsigned int HEIGHT = 600;
 
     GameWindow window(WIDTH, HEIGHT, "Mario - Demo (SFML + Box2D)");
@@ -49,7 +50,7 @@ int main() {
     float stateTimer = 0.0f;
 
     // Session
-    std::unique_ptr<GameSession> session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
+    std::unique_ptr<GameSession> session = std::make_unique<GameSession>((float)LEVEL_WIDTH, (float)HEIGHT);
 
     // Camera
     // SFML 3: Rect constructor takes vectors: position, size
@@ -104,7 +105,7 @@ int main() {
              stateTimer -= dt;
              if (stateTimer <= 0.0f) {
                  // Reset Level
-                 session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
+                 session = std::make_unique<GameSession>((float)LEVEL_WIDTH, (float)HEIGHT);
                  currentState = PLAYING;
                  camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
              }
@@ -113,7 +114,7 @@ int main() {
              if (stateTimer <= 0.0f) {
                  // Restart Game
                  lives = 3;
-                 session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
+                 session = std::make_unique<GameSession>((float)LEVEL_WIDTH, (float)HEIGHT);
                  currentState = LIVES_SCREEN; 
                  stateTimer = 2.0f;
                  camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});

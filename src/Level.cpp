@@ -117,6 +117,7 @@ Level::Level(Physics& physics, float width, float height)
     // Let's put it at `height - 32 - 48` = 80px above ground?
     // Player jumps quite high.
     m_blocks.emplace_back(m_physics, 250.0f, m_groundY - 64.0f);
+    m_blocks.emplace_back(m_physics, 500.0f, m_groundY - 64.0f);  // Segundo bloque para Fire Flower
 
     // Spawn Enemies - position at ground level (m_groundY is top of ground)
     m_enemies.push_back(std::make_unique<Goomba>(m_physics, 400.0f, m_groundY));
@@ -159,7 +160,8 @@ void Level::checkCollisions(Player& player) {
     // SFML 3: pBounds.top -> pBounds.position.y
     sf::FloatRect headRect({pPos.x - 5, pBounds.position.y - 5}, {10, 10});
 
-    for (auto& block : m_blocks) {
+    for (size_t i = 0; i < m_blocks.size(); ++i) {
+        auto& block = m_blocks[i];
         if (block.isActive()) {
             sf::FloatRect bBounds = block.getBounds();
             // Check intersection (SFML 3: findIntersection returns optional)
@@ -167,9 +169,21 @@ void Level::checkCollisions(Player& player) {
                 // Trigger hit only if block is Question
                 block.hit();
                 
-                // Spawn Item
-                if (m_items.empty()) {
-                     m_items.push_back(std::make_unique<Item>(m_physics, block.getPosition().x, block.getPosition().y));
+                // Spawn Item based on block index and Mario's state
+                // Block 0 = Mushroom only
+                // Block 1+ = Fire Flower block (Mushroom if small, Fire Flower if big)
+                if (i == 0) {
+                    // First block always spawns Mushroom
+                    m_items.push_back(std::make_unique<Item>(m_physics, block.getPosition().x, block.getPosition().y));
+                } else {
+                    // Power-up blocks: classic behavior
+                    if (player.isBig()) {
+                        // Big Mario gets Fire Flower
+                        m_items.push_back(std::make_unique<FireFlower>(m_physics, block.getPosition().x, block.getPosition().y));
+                    } else {
+                        // Small Mario gets Mushroom
+                        m_items.push_back(std::make_unique<Item>(m_physics, block.getPosition().x, block.getPosition().y));
+                    }
                 }
             }
         }
@@ -181,7 +195,14 @@ void Level::checkCollisions(Player& player) {
              // Simple Box collision between Player and Item
              if (player.getBounds().findIntersection(item->getBounds())) {
                  item->collect();
-                 player.grow();
+                 
+                 // Check if it's a Fire Flower
+                 FireFlower* fireFlower = dynamic_cast<FireFlower*>(item.get());
+                 if (fireFlower) {
+                     player.becomeFireMario();
+                 } else {
+                     player.grow();
+                 }
              }
         }
     }
