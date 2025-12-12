@@ -4,7 +4,7 @@
 #include <iostream>
 
 Player::Player(Physics& physics, float startX, float startY)
-: m_physics(physics), m_sprite(m_texture), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false),
+: m_physics(physics), m_sprite(m_texture), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false), m_isFireMario(false),
   m_isDead(false), m_isInvulnerable(false), m_invulnerableTimer(0.0f),
   m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
@@ -16,6 +16,9 @@ Player::Player(Physics& physics, float startX, float startY)
     }
     if (!m_bigTexture.loadFromFile("assets/images/mario_grande.png")) {
         std::cerr << "Error loading mario_grande.png" << std::endl;
+    }
+    if (!m_fireTexture.loadFromFile("assets/images/mario_fuego.png")) {
+        std::cerr << "Error loading mario_fuego.png" << std::endl;
     }
     m_sprite.setTexture(m_texture);
     
@@ -278,7 +281,7 @@ void Player::updateAnimation(float dt) {
     int left = textureIndex * finalStride;
 
     if (m_isBig) {
-        // Big Mario Animation
+        // Big Mario Animation (also used for Fire Mario - same layout)
         // Height adjusted to 33 to prevent foot clipping
         // Origin adjusted to (8, 17.5) to align vertically with physics center
         // - Physics Box Height ~30. Center to Bottom = 15.
@@ -287,7 +290,14 @@ void Player::updateAnimation(float dt) {
         // - So Center should align with Sprite 18 (33 - 15).
         // - Let's use Origin 17.5 to center it well.
         m_sprite.setTextureRect(sf::IntRect({left, 0}, {18, 36}));
-        m_sprite.setOrigin({18.0f / 2.0f, 23.0f}); 
+        m_sprite.setOrigin({18.0f / 2.0f, 23.0f});
+        
+        // Switch texture based on fire state
+        if (m_isFireMario) {
+            m_sprite.setTexture(m_fireTexture);
+        } else {
+            m_sprite.setTexture(m_bigTexture);
+        } 
     } else {
         // Small Mario Animation
         // Ajuste final V2:
@@ -366,6 +376,19 @@ void Player::grow() {
     b2Body_SetLinearVelocity(m_bodyId, vel); // Maintain momentum
 }
 
+void Player::becomeFireMario() {
+    if (!m_isBig) {
+        // Must be big first - call grow instead
+        grow();
+        return;
+    }
+    
+    if (m_isFireMario) return; // Already fire mario
+    
+    m_isFireMario = true;
+    m_sprite.setTexture(m_fireTexture);
+}
+
 void Player::bounce() {
     // Small bounce after stomping enemy - set velocity directly
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
@@ -377,7 +400,16 @@ void Player::bounce() {
 void Player::takeDamage() {
     if (m_isInvulnerable || m_isDead) return;
 
-    if (m_isBig) {
+    if (m_isFireMario) {
+        // Fire Mario -> Big Mario
+        m_isFireMario = false;
+        m_isInvulnerable = true;
+        m_invulnerableTimer = 0.0f;
+        
+        // Switch back to Big texture
+        m_sprite.setTexture(m_bigTexture);
+        // Still big, no physics change needed
+    } else if (m_isBig) {
         m_isBig = false;
         m_isInvulnerable = true;
         m_invulnerableTimer = 0.0f;

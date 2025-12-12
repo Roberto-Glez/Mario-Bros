@@ -11,8 +11,10 @@ public:
     void update(float dt);
     void draw(sf::RenderWindow& window);
     void grow();
+    void becomeFireMario();
     void bounce();  // Bounce after stomping enemy
     bool isBig() const { return m_isBig; }
+    bool isFireMario() const { return m_isFireMario; }
     // Método helper para la cámara
     sf::Vector2f getPosition() const;
     sf::FloatRect getBounds() const;
@@ -31,12 +33,14 @@ private:
     
     sf::Texture m_texture;
     sf::Texture m_bigTexture;
+    sf::Texture m_fireTexture;
     sf::Sprite m_sprite;
     
     float m_width;
     float m_height;
     bool m_canJump;
     bool m_isBig;
+    bool m_isFireMario;
 
     // Death & Invulnerability
     bool m_isDead;

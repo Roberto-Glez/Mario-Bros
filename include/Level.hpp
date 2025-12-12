@@ -3,6 +3,7 @@
 
 #include "Block.hpp"
 #include "Enemy.hpp"
+#include "FireFlower.hpp"
 #include "Goomba.hpp"
 #include "Item.hpp"
 #include "Koopa.hpp"
@@ -11,6 +12,7 @@
 #include <box2d/box2d.h>
 #include <memory>
 #include <vector>
+
 
 // Forward declaration
 class Player;
