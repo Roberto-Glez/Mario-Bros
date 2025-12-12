@@ -18,8 +18,8 @@ public:
 protected:
     Physics& m_physics;
     b2BodyId m_bodyId;
-    sf::Sprite m_sprite;
     sf::Texture m_texture;
+    sf::Sprite m_sprite;
     
     bool m_collected;
     bool m_spawning;

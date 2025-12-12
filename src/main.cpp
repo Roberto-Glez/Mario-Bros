@@ -26,16 +26,21 @@ int main() {
 
     // Load Font (Fallback system font since project might miss one)
     sf::Font font;
-    if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+    if (!font.openFromFile("C:/Windows/Fonts/arial.ttf")) {
         std::cerr << "Failed to load font C:/Windows/Fonts/arial.ttf" << std::endl;
         // Proceeding without font might crash or show nothing if we use text.
         // SFML requires a valid font for Text.
     }
     
-    sf::Text uiText;
-    uiText.setFont(font);
+    // SFML 3: Text constructor requires font as first argument
+    sf::Text uiText(font); 
     uiText.setCharacterSize(40);
     uiText.setFillColor(sf::Color::White);
+
+    sf::Text hudText(font);
+    hudText.setCharacterSize(30);
+    hudText.setFillColor(sf::Color::White);
+    hudText.setPosition({20.f, 20.f}); // SFML 3: functions take sf::Vector2f
 
     // Game State
     int lives = 3;
@@ -47,7 +52,8 @@ int main() {
     std::unique_ptr<GameSession> session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
 
     // Camera
-    sf::View camera(sf::FloatRect(0, 0, (float)WIDTH, (float)HEIGHT));
+    // SFML 3: Rect constructor takes vectors: position, size
+    sf::View camera(sf::FloatRect({0.f, 0.f}, {(float)WIDTH, (float)HEIGHT}));
 
     auto update = [&](float dt) {
         if (currentState == PLAYING) {
@@ -66,7 +72,7 @@ int main() {
             float maxCamY = (float)HEIGHT / 2.0f;
             float camY = std::min(session->player->getPosition().y, maxCamY);
             
-            camera.setCenter(camX, camY);
+            camera.setCenter({camX, camY}); // SFML 3: takes Vector2f
 
             // Check Death
             if (session->player->isDead()) {
@@ -100,7 +106,7 @@ int main() {
                  // Reset Level
                  session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
                  currentState = PLAYING;
-                 camera.setCenter((float)WIDTH / 2.0f, (float)HEIGHT / 2.0f);
+                 camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
              }
         } else if (currentState == GAME_OVER) {
              stateTimer -= dt;
@@ -110,7 +116,7 @@ int main() {
                  session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
                  currentState = LIVES_SCREEN; 
                  stateTimer = 2.0f;
-                 camera.setCenter((float)WIDTH / 2.0f, (float)HEIGHT / 2.0f);
+                 camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
              }
         }
     };
@@ -120,6 +126,11 @@ int main() {
             window.window().setView(camera);
             session->level->draw(window.window());
             session->player->draw(window.window());
+
+            // Draw HUD
+            window.window().setView(window.window().getDefaultView());
+            hudText.setString("Lives: " + std::to_string(lives));
+            window.window().draw(hudText);
         } else {
             // Draw Black Screen with UI
             window.window().setView(window.window().getDefaultView());
@@ -136,9 +147,10 @@ int main() {
             
             // Center Text
             sf::FloatRect textBounds = uiText.getLocalBounds();
-            uiText.setOrigin(textBounds.left + textBounds.width / 2.0f,
-                             textBounds.top + textBounds.height / 2.0f);
-            uiText.setPosition((float)WIDTH / 2.0f, (float)HEIGHT / 2.0f);
+            // SFML 3: Rect members are position.x/y and size.x/y
+            uiText.setOrigin({textBounds.position.x + textBounds.size.x / 2.0f,
+                             textBounds.position.y + textBounds.size.y / 2.0f});
+            uiText.setPosition({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
             
             window.window().draw(uiText);
         }

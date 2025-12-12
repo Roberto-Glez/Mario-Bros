@@ -21,8 +21,8 @@ private:
 
     Physics& m_physics;
     b2BodyId m_bodyId;
-    sf::Sprite m_sprite;
     sf::Texture m_texture; // We might want to clear this if sharing textures, but for now individual texture
+    sf::Sprite m_sprite;
     
     Type m_type;
     bool m_active;

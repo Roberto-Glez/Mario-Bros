@@ -3,7 +3,7 @@
 #include <chrono>
 
 GameWindow::GameWindow(unsigned int width, unsigned int height, const std::string& title)
-: m_window(sf::VideoMode(width, height), title)
+: m_window(sf::VideoMode({width, height}), title)
 {
     m_window.setFramerateLimit(60);
 }
@@ -14,9 +14,10 @@ void GameWindow::run(std::function<void(float)> update, std::function<void()> re
 {
     sf::Clock clock;
     while (m_window.isOpen()) {
-        sf::Event event;
-        while (m_window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) m_window.close();
+        while (const std::optional event = m_window.pollEvent()) {
+            if (event->is<sf::Event::Closed>()) {
+                m_window.close();
+            }
         }
 
         float dt = clock.restart().asSeconds();

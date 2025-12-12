@@ -2,7 +2,7 @@
 #include <iostream>
 
 Item::Item(Physics& physics, float x, float y)
-: m_physics(physics), m_collected(false), m_spawning(true), m_spawnY(y), m_targetY(y - 32.0f), m_blinkTimer(0.0f), m_visible(true)
+: m_physics(physics), m_collected(false), m_spawning(true), m_spawnY(y), m_targetY(y - 32.0f), m_blinkTimer(0.0f), m_visible(true), m_sprite(m_texture)
 {
     if (!m_texture.loadFromFile("assets/images/items.png")) {
         std::cerr << "Error loading items.png" << std::endl;
@@ -11,10 +11,10 @@ Item::Item(Physics& physics, float x, float y)
     
     // Red Mushroom
     // 18x16 sprite. Origin (9, 11) raises sprite 2px above 'perfect' alignment to ensure it sits visibly ON top of floor.
-    m_sprite.setTextureRect(sf::IntRect(0, 0, 18, 16));
-    m_sprite.setOrigin(9, 11);
-    m_sprite.setScale(2.0f, 2.0f);
-    m_sprite.setPosition(x, y); // Start inside block
+    m_sprite.setTextureRect(sf::IntRect({0, 0}, {18, 16}));
+    m_sprite.setOrigin({9.f, 11.f});
+    m_sprite.setScale({2.0f, 2.0f});
+    m_sprite.setPosition({x, y}); // Start inside block
 
     // Physics Body (Dynamic but kinematic while spawning)
     // For now, no physics body while spawning. We create it after spawn.
@@ -37,7 +37,7 @@ void Item::update(float dt) {
 
     if (m_spawning) {
         // Move Up
-        m_sprite.move(0, -30.0f * dt);
+        m_sprite.move({0.f, -30.0f * dt});
         if (m_sprite.getPosition().y <= m_targetY) {
             m_spawning = false;
             
@@ -58,8 +58,8 @@ void Item::update(float dt) {
             // Slightly smaller physics box to endure it doesn't snag easily
             b2Polygon box = b2MakeBox((14.0f / 2.0f) / Physics::SCALE, (14.0f / 2.0f) / Physics::SCALE);
             b2ShapeDef shapeDef = b2DefaultShapeDef();
-            shapeDef.friction = 0.0f; // Friction 0 to slide, or small value
-            shapeDef.restitution = 0.0f;
+            // shapeDef.friction = 0.0f; // Friction 0 to slide, or small value
+            // shapeDef.restitution = 0.0f;
             
             b2CreatePolygonShape(m_bodyId, &shapeDef, &box);
             
@@ -70,7 +70,7 @@ void Item::update(float dt) {
         // Sync with Physics
         if (b2Body_IsValid(m_bodyId)) {
             b2Vec2 pos = b2Body_GetPosition(m_bodyId);
-            m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
+            m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
             
             // Maintain horizontal velocity
             b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);

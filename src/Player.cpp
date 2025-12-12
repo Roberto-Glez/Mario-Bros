@@ -4,7 +4,7 @@
 #include <iostream>
 
 Player::Player(Physics& physics, float startX, float startY)
-: m_physics(physics), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false),
+: m_physics(physics), m_sprite(m_texture), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false),
   m_isDead(false), m_isInvulnerable(false), m_invulnerableTimer(0.0f),
   m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
 {
@@ -21,13 +21,13 @@ Player::Player(Physics& physics, float startX, float startY)
     
     // Set initial frame (Idle = 0)
     // Height 19, Origin Y 10 as per calibration V2
-    m_sprite.setTextureRect(sf::IntRect(0, 0, 16, 19));
+    m_sprite.setTextureRect(sf::IntRect({0, 0}, {16, 19}));
     
     // Center origin X (8), Align Y (10)
-    m_sprite.setOrigin(16.0f / 2.0f, 10.0f);
+    m_sprite.setOrigin({16.0f / 2.0f, 10.0f});
     
     // Scale visual
-    m_sprite.setScale(2.0f, 2.0f);
+    m_sprite.setScale({2.0f, 2.0f});
 
 
     // Definición del cuerpo (v3)
@@ -47,7 +47,7 @@ Player::Player(Physics& physics, float startX, float startY)
     // Definir la "fixture" (propiedades físicas)
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.density = 1.0f;
-    shapeDef.friction = 0.3f;
+    // shapeDef.friction = 0.3f;
 
     // Unir forma al cuerpo
     b2CreatePolygonShape(m_bodyId, &shapeDef, &dynamicBox);
@@ -68,9 +68,9 @@ void Player::handleInput(float dt)
 
     // Input Handling
     bool isMoving = false;
-    bool leftInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::A);
-    bool rightInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::D);
-    bool downInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::S);
+    bool leftInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A);
+    bool rightInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D);
+    bool downInput = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S);
     bool isSkidding = false;
     bool isCrouching = downInput && m_isBig && m_canJump; // Crouch only if Big Mario and on ground
 
@@ -138,7 +138,7 @@ void Player::handleInput(float dt)
     b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){impulse, 0.0f}, true);
 
     // Salto - impulse increased to reach ~3 blocks height
-    if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) && m_canJump) {
+    if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) && m_canJump) {
         float jumpImpulse = -b2Body_GetMass(m_bodyId) * 11.0f;
         b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){0.0f, jumpImpulse}, true);
         m_canJump = false;
@@ -166,13 +166,13 @@ void Player::update(float dt)
     b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
 
     // Actualizar gráfico SFML
-    m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
+    m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
     
     // Scale flipping based on direction
     if (m_facingRight) {
-        m_sprite.setScale(2.0f, 2.0f);
+        m_sprite.setScale({2.0f, 2.0f});
     } else {
-        m_sprite.setScale(-2.0f, 2.0f);
+        m_sprite.setScale({-2.0f, 2.0f});
     }
 
     // Chequeo de suelo mejorado (Hysteresis/Timer)
@@ -193,7 +193,7 @@ void Player::update(float dt)
 
     // Variable gravity for snappier jumps (Mario-style)
     // Apply extra downward force when falling or when jump button released
-    bool jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Up);
+    bool jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
     
     if (vel.y > 0.5f) {
         // Falling - apply extra gravity for faster descent
@@ -286,8 +286,8 @@ void Player::updateAnimation(float dt) {
         // - We want Feet (33) to align with Body Bottom (Center + 15).
         // - So Center should align with Sprite 18 (33 - 15).
         // - Let's use Origin 17.5 to center it well.
-        m_sprite.setTextureRect(sf::IntRect(left, 0, 18, 36));
-        m_sprite.setOrigin(18.0f / 2.0f, 23.0f); 
+        m_sprite.setTextureRect(sf::IntRect({left, 0}, {18, 36}));
+        m_sprite.setOrigin({18.0f / 2.0f, 23.0f}); 
     } else {
         // Small Mario Animation
         // Ajuste final V2:
@@ -298,17 +298,17 @@ void Player::updateAnimation(float dt) {
         //   18 - OriginY = 8.
         //   OriginY = 10.
         
-        m_sprite.setTextureRect(sf::IntRect(left, 0, 16, 19)); 
-        m_sprite.setOrigin(16.0f / 2.0f, 10.0f);
+        m_sprite.setTextureRect(sf::IntRect({left, 0}, {16, 19})); 
+        m_sprite.setOrigin({16.0f / 2.0f, 10.0f});
     }
 
     // Special override only for DEAD state
     if (m_state == State::Dead) {
          // User requested: Sprite 4 starts at pixel (55, 2). 
          // Assuming 16x16 size for the dead sprite.
-         m_sprite.setTextureRect(sf::IntRect(55, 2, 16, 16));
+         m_sprite.setTextureRect(sf::IntRect({55, 2}, {16, 16}));
          // Reset origin to match correct center for dying animation
-         m_sprite.setOrigin(16.0f / 2.0f, 10.0f); 
+         m_sprite.setOrigin({16.0f / 2.0f, 10.0f}); 
     }
 }
 
@@ -359,7 +359,7 @@ void Player::grow() {
     b2Polygon box = b2MakeBox((28.0f / 2.0f) / Physics::SCALE, (52.0f / 2.0f) / Physics::SCALE);
     b2ShapeDef shapeDef = b2DefaultShapeDef();
     shapeDef.density = 1.0f;
-    shapeDef.friction = 0.3f;
+    // shapeDef.friction = 0.3f;
     
     b2CreatePolygonShape(m_bodyId, &shapeDef, &box);
     
@@ -403,7 +403,7 @@ void Player::takeDamage() {
         b2Polygon dynamicBox = b2MakeBox((m_width / 2.0f) / Physics::SCALE, (m_height / 2.0f) / Physics::SCALE);
         b2ShapeDef shapeDef = b2DefaultShapeDef();
         shapeDef.density = 1.0f;
-        shapeDef.friction = 0.3f;
+        // shapeDef.friction = 0.3f;
         
         b2CreatePolygonShape(m_bodyId, &shapeDef, &dynamicBox);
         

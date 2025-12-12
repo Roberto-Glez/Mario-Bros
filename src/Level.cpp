@@ -21,8 +21,8 @@ Level::Level(Physics& physics, float width, float height)
     int numTilesX = static_cast<int>(width / TILE_SIZE) + 1;
     int numTilesY = 2; // Depth of ground
 
-    m_groundVertices.setPrimitiveType(sf::Quads);
-    m_groundVertices.resize(numTilesX * numTilesY * 4);
+    m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles); // SFML 3: Quads removed
+    m_groundVertices.resize(numTilesX * numTilesY * 6); // 6 vertices per tile (2 triangles)
 
     // Texture Coordinates for the specific block
     // User attached a brown block. Usually in NES Mario:
@@ -45,22 +45,32 @@ Level::Level(Physics& physics, float width, float height)
 
     for (int i = 0; i < numTilesX; ++i) {
         for (int j = 0; j < numTilesY; ++j) {
-            sf::Vertex* quad = &m_groundVertices[(i * numTilesY + j) * 4];
+            sf::Vertex* tri = &m_groundVertices[(i * numTilesY + j) * 6];
 
             float x = i * TILE_SIZE;
             float y = m_groundY + j * TILE_SIZE;
 
-            // Position
-            quad[0].position = sf::Vector2f(x, y);
-            quad[1].position = sf::Vector2f(x + TILE_SIZE, y);
-            quad[2].position = sf::Vector2f(x + TILE_SIZE, y + TILE_SIZE);
-            quad[3].position = sf::Vector2f(x, y + TILE_SIZE);
+            // Quad positions
+            sf::Vector2f p0(x, y);
+            sf::Vector2f p1(x + TILE_SIZE, y);
+            sf::Vector2f p2(x + TILE_SIZE, y + TILE_SIZE);
+            sf::Vector2f p3(x, y + TILE_SIZE);
 
             // Texture Coords
-            quad[0].texCoords = sf::Vector2f(texU, texV);
-            quad[1].texCoords = sf::Vector2f(texU + TILE_SIZE, texV);
-            quad[2].texCoords = sf::Vector2f(texU + TILE_SIZE, texV + TILE_SIZE);
-            quad[3].texCoords = sf::Vector2f(texU, texV + TILE_SIZE);
+            sf::Vector2f t0((float)texU, (float)texV);
+            sf::Vector2f t1((float)texU + TILE_SIZE, (float)texV);
+            sf::Vector2f t2((float)texU + TILE_SIZE, (float)texV + TILE_SIZE);
+            sf::Vector2f t3((float)texU, (float)texV + TILE_SIZE);
+
+            // Triangle 1 (0, 1, 2)
+            tri[0].position = p0; tri[0].texCoords = t0;
+            tri[1].position = p1; tri[1].texCoords = t1;
+            tri[2].position = p2; tri[2].texCoords = t2;
+
+            // Triangle 2 (2, 3, 0)
+            tri[3].position = p2; tri[3].texCoords = t2;
+            tri[4].position = p3; tri[4].texCoords = t3;
+            tri[5].position = p0; tri[5].texCoords = t0;
         }
     }
 
@@ -82,7 +92,7 @@ Level::Level(Physics& physics, float width, float height)
 
     // Fixture
     b2ShapeDef fixtureDef = b2DefaultShapeDef();
-    fixtureDef.friction = 0.6f;
+    // fixtureDef.friction = 0.6f;
     
     b2CreatePolygonShape(m_groundBodyId, &fixtureDef, &groundBox);
 
@@ -97,7 +107,7 @@ Level::Level(Physics& physics, float width, float height)
     
     b2Polygon wallBox = b2MakeBox(10.0f / Physics::SCALE, (height / 2.0f) / Physics::SCALE); // Altura completa
     b2ShapeDef wallShapeDef = b2DefaultShapeDef();
-    wallShapeDef.friction = 0.0f; // Sin fricción para que no se pegue
+    // wallShapeDef.friction = 0.0f; // Sin fricción para que no se pegue
     
     b2CreatePolygonShape(wallId, &wallShapeDef, &wallBox);
 
@@ -146,13 +156,14 @@ void Level::checkCollisions(Player& player) {
     sf::FloatRect pBounds = player.getBounds();
     
     // Define a small sensor box above the player's head
-    sf::FloatRect headRect(pPos.x - 5, pBounds.top - 5, 10, 10);
+    // SFML 3: pBounds.top -> pBounds.position.y
+    sf::FloatRect headRect({pPos.x - 5, pBounds.position.y - 5}, {10, 10});
 
     for (auto& block : m_blocks) {
         if (block.isActive()) {
             sf::FloatRect bBounds = block.getBounds();
-            // Check intersection
-            if (headRect.intersects(bBounds)) {
+            // Check intersection (SFML 3: findIntersection returns optional)
+            if (headRect.findIntersection(bBounds)) {
                 // Trigger hit only if block is Question
                 block.hit();
                 
@@ -168,7 +179,7 @@ void Level::checkCollisions(Player& player) {
     for (auto& item : m_items) {
         if (!item->isCollected() && !item->isSpawning()) {
              // Simple Box collision between Player and Item
-             if (player.getBounds().intersects(item->getBounds())) {
+             if (player.getBounds().findIntersection(item->getBounds())) {
                  item->collect();
                  player.grow();
              }
@@ -183,10 +194,11 @@ void Level::checkCollisions(Player& player) {
             }
             
             sf::FloatRect enemyBounds = enemy->getBounds();
-            if (pBounds.intersects(enemyBounds)) {
+            if (pBounds.findIntersection(enemyBounds)) {
                 sf::Vector2f enemyPos = enemy->getPosition();
-                float playerBottom = pBounds.top + pBounds.height;
-                float enemyTop = enemyBounds.top;
+                // SFML 3: top -> position.y, height -> size.y
+                float playerBottom = pBounds.position.y + pBounds.size.y;
+                float enemyTop = enemyBounds.position.y;
                 
                 // Stomp condition (Improved):
                 // 1. Player must be falling (velocity y > 0)
@@ -196,13 +208,13 @@ void Level::checkCollisions(Player& player) {
                 b2Vec2 pVel = player.getVelocity();
                 bool isFalling = pVel.y > 0.0f;
                 
-                float enemyCenterY = enemyBounds.top + (enemyBounds.height / 2.0f);
+                float enemyCenterY = enemyBounds.position.y + (enemyBounds.size.y / 2.0f);
                 bool feetAboveCenter = playerBottom < enemyCenterY + 5.0f; // Allow slightly below center if falling fast
                 
                 float enemyCenterX = enemyPos.x;
                 float playerCenterX = pPos.x;
                 float horizontalDistance = std::abs(playerCenterX - enemyCenterX);
-                float maxHorizontalDistance = (enemyBounds.width / 2.0f) + 6.0f;  // Generous horizontal overlap
+                float maxHorizontalDistance = (enemyBounds.size.x / 2.0f) + 6.0f;  // Generous horizontal overlap
                 
                 bool horizontallyAligned = horizontalDistance < maxHorizontalDistance;
                 

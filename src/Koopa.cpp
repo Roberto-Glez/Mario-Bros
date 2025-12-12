@@ -15,10 +15,10 @@ Koopa::Koopa(Physics& physics, float x, float y)
     m_sprite.setTexture(m_texture);
     
     // Set initial frame
-    m_sprite.setTextureRect(sf::IntRect(SPRITE_OFFSET_X, SPRITE_OFFSET_Y, SPRITE_WIDTH, SPRITE_HEIGHT));
-    m_sprite.setOrigin(SPRITE_WIDTH / 2.0f, SPRITE_HEIGHT);
-    m_sprite.setScale(2.0f, 2.0f);
-    m_sprite.setPosition(x, y);
+    m_sprite.setTextureRect(sf::IntRect({SPRITE_OFFSET_X, SPRITE_OFFSET_Y}, {SPRITE_WIDTH, SPRITE_HEIGHT}));
+    m_sprite.setOrigin({SPRITE_WIDTH / 2.0f, SPRITE_HEIGHT});
+    m_sprite.setScale({2.0f, 2.0f});
+    m_sprite.setPosition({x, y});
     
     // Create physics body
     b2BodyDef bodyDef = b2DefaultBodyDef();
@@ -33,11 +33,11 @@ Koopa::Koopa(Physics& physics, float x, float y)
         (17.0f / 2.0f) / Physics::SCALE, 
         (15.0f / 2.0f) / Physics::SCALE,
         (b2Vec2){0.0f, -(15.0f / 2.0f) / Physics::SCALE},
-        0.0f
+        b2MakeRot(0.0f)
     );
     b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.friction = 0.0f;
-    shapeDef.restitution = 0.0f;
+    // shapeDef.friction = 0.0f;
+    // shapeDef.restitution = 0.0f;
     
     b2CreatePolygonShape(m_bodyId, &shapeDef, &box);
     
@@ -56,7 +56,7 @@ void Koopa::update(float dt) {
         // Sync position only
         if (b2Body_IsValid(m_bodyId)) {
             b2Vec2 pos = b2Body_GetPosition(m_bodyId);
-            m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
+            m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
         }
         return;
     }
@@ -71,20 +71,20 @@ void Koopa::update(float dt) {
             // Set sprite based on current frame using exact coordinates
             if (m_shellFrame == 0) {
                 // Sprite 3
-                m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+                m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
             } else if (m_shellFrame == 1) {
                 // Sprite 4
-                m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_4_X, SHELL_SPRITE_4_Y, SHELL_WIDTH, SHELL_HEIGHT));
+                m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_4_X, SHELL_SPRITE_4_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
             } else {
                 // Sprite 5 (idle, but part of animation) - use same height as other shell sprites
                 int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
-                m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+                m_sprite.setTextureRect(sf::IntRect({shellX, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
             }
         }
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Vec2 pos = b2Body_GetPosition(m_bodyId);
-            m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
+            m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
             
             // Check wall collision to reverse
             b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
@@ -108,10 +108,10 @@ void Koopa::stomp() {
         
         // Set shell sprite (sprite 5 idle with correct height)
         int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
-        m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+        m_sprite.setTextureRect(sf::IntRect({shellX, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
         
         // Adjust origin for shell (shorter sprite, sits on ground)
-        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
         
         // Stop movement
         if (b2Body_IsValid(m_bodyId)) {
@@ -127,10 +127,10 @@ void Koopa::stomp() {
         m_shellAnimTimer = 0.0f;
         
         // Set initial animation sprite (sprite 3 with exact coordinates)
-        m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
+        m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
         
         // Adjust origin for shell animation
-        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetType(m_bodyId, b2_dynamicBody);
@@ -142,8 +142,8 @@ void Koopa::stomp() {
         
         // Reset to idle shell sprite with correct height
         int shellX = SPRITE_OFFSET_X + 4 * (SPRITE_WIDTH + SPRITE_GAP);
-        m_sprite.setTextureRect(sf::IntRect(shellX, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
-        m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+        m_sprite.setTextureRect(sf::IntRect({shellX, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
+        m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
         
         if (b2Body_IsValid(m_bodyId)) {
             b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, 0.0f});
@@ -166,8 +166,8 @@ void Koopa::kick(float direction, float kickerAbsVelocityX) {
     m_shellAnimTimer = 0.0f;
     
     // Set initial animation sprite (sprite 3)
-    m_sprite.setTextureRect(sf::IntRect(SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y, SHELL_WIDTH, SHELL_HEIGHT));
-    m_sprite.setOrigin(SHELL_WIDTH / 2.0f, SHELL_HEIGHT);
+    m_sprite.setTextureRect(sf::IntRect({SHELL_SPRITE_3_X, SHELL_SPRITE_3_Y}, {SHELL_WIDTH, SHELL_HEIGHT}));
+    m_sprite.setOrigin({SHELL_WIDTH / 2.0f, SHELL_HEIGHT});
     
     if (b2Body_IsValid(m_bodyId)) {
         b2Body_SetType(m_bodyId, b2_dynamicBody);
@@ -192,7 +192,7 @@ void Koopa::updateAnimation(float dt) {
         m_currentFrame = (m_currentFrame + 1) % 2;
         
         int frameX = SPRITE_OFFSET_X + m_currentFrame * (SPRITE_WIDTH + SPRITE_GAP);
-        m_sprite.setTextureRect(sf::IntRect(frameX, SPRITE_OFFSET_Y, SPRITE_WIDTH, SPRITE_HEIGHT));
+        m_sprite.setTextureRect(sf::IntRect({frameX, SPRITE_OFFSET_Y}, {SPRITE_WIDTH, SPRITE_HEIGHT}));
     }
 }
 

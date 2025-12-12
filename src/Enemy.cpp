@@ -4,6 +4,7 @@
 
 Enemy::Enemy(Physics& physics, float x, float y)
     : m_physics(physics)
+    , m_sprite(m_texture)
     , m_state(State::Walking)
     , m_animationTimer(0.0f)
     , m_currentFrame(0)
@@ -41,13 +42,13 @@ void Enemy::update(float dt) {
     // Sync sprite with physics
     if (b2Body_IsValid(m_bodyId)) {
         b2Vec2 pos = b2Body_GetPosition(m_bodyId);
-        m_sprite.setPosition(pos.x * Physics::SCALE, pos.y * Physics::SCALE);
+        m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
         
         // Flip sprite based on direction
         if (m_direction > 0) {
-            m_sprite.setScale(-2.0f, 2.0f);  // Facing right (mirrored)
+            m_sprite.setScale({-2.0f, 2.0f});  // Facing right (mirrored)
         } else {
-            m_sprite.setScale(2.0f, 2.0f);   // Facing left (normal)
+            m_sprite.setScale({2.0f, 2.0f});   // Facing left (normal)
         }
         
         // Maintain horizontal velocity
