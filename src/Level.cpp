@@ -25,11 +25,16 @@ Level::Level(Physics &physics, float width, float height)
 
   // Sección alternativa: desde X=640 por 17 bloques
   static constexpr int ALT_START_TILE = 640 / DISPLAY_TILE_SIZE; // Tile 20
-  static constexpr int ALT_NUM_TILES = 17;
+  static constexpr int ALT_NUM_TILES =
+      16; // Reducido de 17 a 16 para excluir tile 37
   static constexpr int ALT_END_TILE = ALT_START_TILE + ALT_NUM_TILES; // Tile 37
 
-  // Contar tiles normales (excluyendo la sección alternativa)
-  int normalTiles = numTilesX - ALT_NUM_TILES;
+  // Tercera sección: desde X=1184 (tile 37) hasta el final
+  static constexpr int THIRD_START_TILE = 1184 / DISPLAY_TILE_SIZE; // Tile 37
+  int thirdNumTiles = numTilesX - THIRD_START_TILE;
+
+  // Contar tiles normales (excluyendo las secciones alternativa y tercera)
+  int normalTiles = numTilesX - ALT_NUM_TILES - thirdNumTiles;
 
   m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
   m_groundVertices.resize(normalTiles * 6);
@@ -38,14 +43,22 @@ Level::Level(Physics &physics, float width, float height)
   m_groundVertices2.setPrimitiveType(sf::PrimitiveType::Triangles);
   m_groundVertices2.resize(ALT_NUM_TILES * 6);
 
+  // Tercer VertexArray para la tercera sección
+  m_groundVertices3.setPrimitiveType(sf::PrimitiveType::Triangles);
+  m_groundVertices3.resize(thirdNumTiles * 6);
+
   int texU = 80; // Sprite normal de tilesets.png
   int texV = 176;
 
   int texU2 = 272; // Sprite alternativo de plataformas.png
   int texV2 = 16;
 
+  int texU3 = 240; // Sprite tercera sección de tilesets.png
+  int texV3 = 96;
+
   int normalIdx = 0;
   int altIdx = 0;
+  int thirdIdx = 0;
 
   for (int i = 0; i < numTilesX; ++i) {
     float x = i * DISPLAY_TILE_SIZE;
@@ -57,10 +70,35 @@ Level::Level(Physics &physics, float width, float height)
     sf::Vector2f p2(x + DISPLAY_TILE_SIZE, y + DISPLAY_TILE_SIZE);
     sf::Vector2f p3(x, y + DISPLAY_TILE_SIZE);
 
-    // Determinar si este tile está en la sección alternativa
+    // Determinar qué sección usar
     bool isAltSection = (i >= ALT_START_TILE && i < ALT_END_TILE);
+    bool isThirdSection = (i >= THIRD_START_TILE);
 
-    if (isAltSection) {
+    if (isThirdSection) {
+      // Usar tercera textura (tilesets.png sprite 240,96)
+      sf::Vertex *tri = &m_groundVertices3[thirdIdx * 6];
+
+      sf::Vector2f t0((float)texU3, (float)texV3);
+      sf::Vector2f t1((float)texU3 + TEX_TILE_SIZE, (float)texV3);
+      sf::Vector2f t2((float)texU3 + TEX_TILE_SIZE,
+                      (float)texV3 + TEX_TILE_SIZE);
+      sf::Vector2f t3((float)texU3, (float)texV3 + TEX_TILE_SIZE);
+
+      tri[0].position = p0;
+      tri[0].texCoords = t0;
+      tri[1].position = p1;
+      tri[1].texCoords = t1;
+      tri[2].position = p2;
+      tri[2].texCoords = t2;
+      tri[3].position = p2;
+      tri[3].texCoords = t2;
+      tri[4].position = p3;
+      tri[4].texCoords = t3;
+      tri[5].position = p0;
+      tri[5].texCoords = t0;
+
+      thirdIdx++;
+    } else if (isAltSection) {
       // Usar textura alternativa (plataformas.png)
       sf::Vertex *tri = &m_groundVertices2[altIdx * 6];
 
@@ -182,6 +220,94 @@ Level::Level(Physics &physics, float width, float height)
     b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
 
     // Visual naranja (dibuja los 3 bloques como uno solo)
+    plat.shape.setSize({plat.width, plat.height});
+    plat.shape.setPosition({plat.x, plat.y});
+    plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma sólida naranja en X=1280, justo encima del suelo
+  {
+    Platform plat;
+    plat.x = 1280.0f;
+    plat.y = m_groundY - 32.0f; // Justo encima del suelo
+    plat.width = 96.0f;         // 3 bloques de 32px = 96px total
+    plat.height = 32.0f;
+
+    // Cuerpo físico estático
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    // Visual naranja
+    plat.shape.setSize({plat.width, plat.height});
+    plat.shape.setPosition({plat.x, plat.y});
+    plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma sólida naranja en X=1856 (bloque 58), con altura de 2 bloques
+  {
+    Platform plat;
+    plat.x = 1856.0f;           // Bloque horizontal 58 (58 * 32 = 1856)
+    plat.y = m_groundY - 64.0f; // 2 bloques arriba del suelo (64px)
+    plat.width = 192.0f;        // 6 bloques de ancho (6 * 32 = 192px)
+    plat.height = 64.0f;        // 2 bloques de altura
+
+    // Cuerpo físico estático
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    // Visual naranja
+    plat.shape.setSize({plat.width, plat.height});
+    plat.shape.setPosition({plat.x, plat.y});
+    plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma sólida naranja en X=1952 (bloque 61), 6 bloques de altura desde
+  // el suelo
+  {
+    Platform plat;
+    plat.x = 1952.0f;            // Bloque horizontal 61 (61 * 32 = 1952)
+    plat.y = m_groundY - 160.0f; // 6 bloques arriba del suelo (5 * 32 = 160px)
+    plat.width = 128.0f;         // 4 bloques de ancho (4 * 32 = 128px)
+    plat.height = 160.0f;        // 5 bloques de altura (5 * 32 = 160 px)
+
+    // Cuerpo físico estático
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    // Visual naranja
     plat.shape.setSize({plat.width, plat.height});
     plat.shape.setPosition({plat.x, plat.y});
     plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
@@ -345,8 +471,9 @@ void Level::checkCollisions(Player &player) {
       if (!enemy->isAlive()) {
         continue;
       }
-      // Skip dying enemies (except Koopa shells which need physical interaction)
-      // Check if it's a Koopa to allow shell interactions even if stomped
+      // Skip dying enemies (except Koopa shells which need physical
+      // interaction) Check if it's a Koopa to allow shell interactions even if
+      // stomped
       Koopa *koopaEnemy = dynamic_cast<Koopa *>(enemy.get());
       bool isKoopaShell = (koopaEnemy && koopaEnemy->isShell());
 
@@ -357,7 +484,7 @@ void Level::checkCollisions(Player &player) {
 
       // If it IS a shell, but it's dying (falling off screen), skip it
       if (isKoopaShell && koopaEnemy->isStomped() && !koopaEnemy->isShell()) {
-           continue; 
+        continue;
       }
 
       sf::FloatRect enemyBounds = enemy->getBounds();
@@ -437,6 +564,8 @@ void Level::draw(sf::RenderWindow &window) {
   window.draw(m_groundVertices, &m_texture);
   // Dibujar suelo (sección alternativa con plataformas.png)
   window.draw(m_groundVertices2, &m_texture2);
+  // Dibujar suelo (tercera sección desde X=1216 con tilesets.png)
+  window.draw(m_groundVertices3, &m_texture);
 
   // Dibujar decoraciones de fondo
   for (auto &decoration : m_decorations) {

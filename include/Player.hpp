@@ -4,7 +4,6 @@
 #include "Physics.hpp"
 #include <SFML/Graphics.hpp>
 
-
 class Player {
 public:
   Player(Physics &physics, float startX, float startY);
