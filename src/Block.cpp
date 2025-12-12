@@ -4,10 +4,13 @@
 Block::Block(Physics &physics, float x, float y)
     : m_physics(physics), m_type(Type::Question), m_active(true),
       m_animTimer(0.0f), m_frame(0), m_sprite(m_texture) {
+  // Cargar textura primero
   if (!m_texture.loadFromFile("assets/images/blocks.png")) {
     std::cerr << "Error loading blocks.png" << std::endl;
   }
-  m_sprite.setTexture(m_texture);
+
+  // Recrear sprite con la textura cargada
+  m_sprite = sf::Sprite(m_texture);
 
   // Sprite del bloque - posición (0, 112) tamaño 16x16
   m_sprite.setTextureRect(sf::IntRect({0, 112}, {16, 16}));

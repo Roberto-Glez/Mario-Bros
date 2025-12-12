@@ -13,7 +13,6 @@
 #include <memory>
 #include <vector>
 
-
 // Forward declaration
 class Player;
 
@@ -49,6 +48,14 @@ private:
   // Stomp cooldown to prevent ghost bounces and stomp loops
   float m_stompCooldown;
   static constexpr float STOMP_COOLDOWN_TIME = 0.5f; // 500ms cooldown
+
+  // Plataformas sólidas (como el suelo)
+  struct Platform {
+    b2BodyId bodyId;
+    sf::RectangleShape shape;
+    float x, y, width, height;
+  };
+  std::vector<Platform> m_platforms;
 };
 
 #endif // LEVEL_HPP
