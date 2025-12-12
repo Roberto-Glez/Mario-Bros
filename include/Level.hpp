@@ -3,8 +3,8 @@
 
 #include "Block.hpp"
 #include "Enemy.hpp"
-#include "Fireball.hpp"
 #include "FireFlower.hpp"
+#include "Fireball.hpp"
 #include "Goomba.hpp"
 #include "Item.hpp"
 #include "Koopa.hpp"
@@ -35,7 +35,9 @@ private:
   Physics &m_physics;
 
   sf::VertexArray m_groundVertices;
+  sf::VertexArray m_groundVertices2; // Sección alternativa de suelo
   sf::Texture m_texture;
+  sf::Texture m_texture2; // Textura de plataformas.png
 
   std::vector<Block> m_blocks;
   std::vector<std::unique_ptr<Item>> m_items;
@@ -61,6 +63,10 @@ private:
     float x, y, width, height;
   };
   std::vector<Platform> m_platforms;
+
+  // Decoraciones de fondo
+  sf::Texture m_plantasTexture;
+  std::vector<sf::Sprite> m_decorations;
 };
 
 #endif // LEVEL_HPP
