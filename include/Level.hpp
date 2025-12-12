@@ -3,6 +3,7 @@
 
 #include "Block.hpp"
 #include "Enemy.hpp"
+#include "Fireball.hpp"
 #include "FireFlower.hpp"
 #include "Goomba.hpp"
 #include "Item.hpp"
@@ -28,6 +29,9 @@ public:
   float groundY() const;
   float getLevelWidth() const { return LEVEL_WIDTH; }
 
+  // Fireballs
+  void spawnFireball(float x, float y, float direction);
+
 private:
   Physics &m_physics;
 
@@ -37,6 +41,7 @@ private:
   std::vector<Block> m_blocks;
   std::vector<std::unique_ptr<Item>> m_items;
   std::vector<std::unique_ptr<Enemy>> m_enemies;
+  std::vector<std::unique_ptr<Fireball>> m_fireballs;
 
   static constexpr int TILE_SIZE = 16;
   static constexpr float LEVEL_WIDTH = 3200.0f; // 4 pantallas de ancho

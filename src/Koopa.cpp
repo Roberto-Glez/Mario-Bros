@@ -60,6 +60,23 @@ void Koopa::update(float dt) {
         }
         return;
     }
+
+    // Handle shell dying state (hit by fireball)
+    if (m_koopaState == KoopaState::ShellDying) {
+        // Update position while falling
+        if (b2Body_IsValid(m_bodyId)) {
+            b2Vec2 pos = b2Body_GetPosition(m_bodyId);
+            m_sprite.setPosition({pos.x * Physics::SCALE, pos.y * Physics::SCALE});
+            
+            // Check if fallen off screen
+            if (pos.y * Physics::SCALE > 700.0f) {
+                m_state = State::Dead;
+                b2DestroyBody(m_bodyId);
+                m_bodyId = b2_nullBodyId;
+            }
+        }
+        return;
+    }
     
     if (m_koopaState == KoopaState::ShellMoving) {
         // Shell sliding - animate through sprites 3-5 using exact coordinates
@@ -198,4 +215,42 @@ void Koopa::updateAnimation(float dt) {
 
 void Koopa::onStomp() {
     // Not used for Koopa - we override stomp() directly
+}
+
+void Koopa::killByFireball() {
+    // Only kill if in shell state
+    if (m_koopaState != KoopaState::Shell && m_koopaState != KoopaState::ShellMoving) {
+        return;
+    }
+    
+    m_koopaState = KoopaState::ShellDying;
+    m_state = State::Stomped; // Prevent normal enemy logic
+    
+    // Flip the sprite upside down
+    m_sprite.setScale({2.0f, -2.0f});
+    
+    // Recreate body as dynamic to fall with physics
+    if (b2Body_IsValid(m_bodyId)) {
+        b2Vec2 pos = b2Body_GetPosition(m_bodyId);
+        b2DestroyBody(m_bodyId);
+        
+        b2BodyDef bodyDef = b2DefaultBodyDef();
+        bodyDef.type = b2_dynamicBody;
+        bodyDef.position = pos;
+        bodyDef.fixedRotation = true;
+        
+        m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
+        
+        // Add shape with no collision filter (falls through everything)
+        b2Polygon box = b2MakeBox((SHELL_WIDTH / 2.0f) / Physics::SCALE, (SHELL_HEIGHT / 2.0f) / Physics::SCALE);
+        b2ShapeDef shapeDef = b2DefaultShapeDef();
+        shapeDef.density = 1.0f;
+        shapeDef.filter.categoryBits = 0;
+        shapeDef.filter.maskBits = 0;
+        
+        b2CreatePolygonShape(m_bodyId, &shapeDef, &box);
+        
+        // Jump up before falling
+        b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, -10.0f});
+    }
 }

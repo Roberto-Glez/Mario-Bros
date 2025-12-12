@@ -6,7 +6,7 @@ FireFlower::FireFlower(Physics& physics, float x, float y)
 {
     // Fire Flower sprite at (0, 18) with size 18x18
     m_sprite.setTextureRect(sf::IntRect({0, 18}, {18, 18}));
-    m_sprite.setOrigin({9.f, 13.f});  // Center horizontally, raise slightly
+    m_sprite.setOrigin({9.f, 11.f});  // Center horizontally, lowered to ground
     m_sprite.setScale({2.0f, 2.0f});
     m_sprite.setPosition({x, y});
 }

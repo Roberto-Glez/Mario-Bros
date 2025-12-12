@@ -25,6 +25,10 @@ public:
     bool isDead() const { return m_isDead; }
     void die();
 
+    // Fireball
+    bool tryShootFireball(); // Returns true if fireball should be spawned
+    bool isFacingRight() const { return m_facingRight; }
+
 private:
     void updateAnimation(float dt);
 
@@ -53,7 +57,14 @@ private:
     float m_runTimer;    // Momentum timer
     int m_currentFrame;
     bool m_facingRight;
-    enum class State { Idle, Running, Jumping, Braking, Crouching, Dead } m_state;
+    enum class State { Idle, Running, Jumping, Braking, Crouching, Throwing, Dead } m_state;
+
+    // Fireball shooting
+    float m_fireballCooldown;
+    float m_throwTimer;      // Timer for throw animation
+    bool m_isThrowing;
+    static constexpr float FIREBALL_COOLDOWN = 0.5f;
+    static constexpr float THROW_ANIM_DURATION = 0.15f;
 };
 
 #endif // PLAYER_HPP

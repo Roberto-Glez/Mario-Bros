@@ -42,7 +42,7 @@ void Block::update(float dt) {
   }
 }
 
-void Block::hit() {
+bool Block::hit() {
   if (m_type == Type::Question) {
     m_type = Type::Empty;
     // Change to Empty Block (Brown Empty is usually at 48, 0)
@@ -50,7 +50,9 @@ void Block::hit() {
     m_sprite.setTextureRect(sf::IntRect({48, 32}, {16, 16}));
     // Or just use the brown one if green empty doesn't exist
     // m_sprite.setTextureRect(sf::IntRect(48, 0, 16, 16));
+    return true;  // First hit - spawn item
   }
+  return false;  // Already hit - no item
 }
 
 void Block::draw(sf::RenderWindow &window) { window.draw(m_sprite); }

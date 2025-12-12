@@ -61,6 +61,14 @@ int main() {
       session->level->update(dt);
       session->level->checkCollisions(*session->player);
 
+      // Check if player wants to shoot fireball
+      if (session->player->tryShootFireball()) {
+        float dir = session->player->isFacingRight() ? 1.0f : -1.0f;
+        sf::Vector2f pos = session->player->getPosition();
+        // Spawn fireball slightly in front of Mario
+        session->level->spawnFireball(pos.x + dir * 20.0f, pos.y - 10.0f, dir);
+      }
+
       // Camera Follow with Constraints
       // Block left movement (minCamX)
       float minCamX = (float)WIDTH / 2.0f;

@@ -135,12 +135,49 @@ void Level::update(float dt) {
     enemy->update(dt);
   }
 
+  // Update Fireballs
+  for (auto &fireball : m_fireballs) {
+    fireball->update(dt);
+  }
+
+  // Check Fireball vs Enemy collisions
+  for (auto &fireball : m_fireballs) {
+    if (!fireball->isAlive()) continue;
+    
+    for (auto &enemy : m_enemies) {
+      if (!enemy->isAlive()) continue;
+      
+      if (fireball->getBounds().findIntersection(enemy->getBounds())) {
+        // Check if it's a Koopa shell
+        Koopa *koopa = dynamic_cast<Koopa *>(enemy.get());
+        if (koopa && koopa->isShell()) {
+          // Kill shell with special animation
+          koopa->killByFireball();
+          std::cout << "Fireball killed Koopa shell!" << std::endl;
+        } else {
+          // Regular enemy - use stomp
+          enemy->stomp();
+          std::cout << "Fireball hit enemy!" << std::endl;
+        }
+        fireball->destroy();
+        break;
+      }
+    }
+  }
+
   // Remove dead Enemies
   m_enemies.erase(std::remove_if(m_enemies.begin(), m_enemies.end(),
                                  [](const std::unique_ptr<Enemy> &e) {
                                    return !e->isAlive();
                                  }),
                   m_enemies.end());
+
+  // Remove dead Fireballs
+  m_fireballs.erase(std::remove_if(m_fireballs.begin(), m_fireballs.end(),
+                                   [](const std::unique_ptr<Fireball> &f) {
+                                     return !f->isAlive();
+                                   }),
+                    m_fireballs.end());
 }
 
 void Level::checkCollisions(Player &player) {
@@ -157,25 +194,26 @@ void Level::checkCollisions(Player &player) {
     if (block.isActive()) {
       sf::FloatRect bBounds = block.getBounds();
       if (headRect.findIntersection(bBounds)) {
-        block.hit();
-
-        // Spawn Item based on block index and Mario's state
-        // Block 0 = Mushroom only
-        // Block 1+ = Fire Flower block (Mushroom if small, Fire Flower if big)
-        if (i == 0) {
-          // First block always spawns Mushroom
-          m_items.push_back(std::make_unique<Item>(
-              m_physics, block.getPosition().x, block.getPosition().y));
-        } else {
-          // Power-up blocks: classic behavior
-          if (player.isBig()) {
-            // Big Mario gets Fire Flower
-            m_items.push_back(std::make_unique<FireFlower>(
-                m_physics, block.getPosition().x, block.getPosition().y));
-          } else {
-            // Small Mario gets Mushroom
+        // Trigger hit - only spawn item if first hit
+        if (block.hit()) {
+          // Spawn Item based on block index and Mario's state
+          // Block 0 = Mushroom only
+          // Block 1+ = Fire Flower block (Mushroom if small, Fire Flower if big)
+          if (i == 0) {
+            // First block always spawns Mushroom
             m_items.push_back(std::make_unique<Item>(
                 m_physics, block.getPosition().x, block.getPosition().y));
+          } else {
+            // Power-up blocks: classic behavior
+            if (player.isBig()) {
+              // Big Mario gets Fire Flower
+              m_items.push_back(std::make_unique<FireFlower>(
+                  m_physics, block.getPosition().x, block.getPosition().y));
+            } else {
+              // Small Mario gets Mushroom
+              m_items.push_back(std::make_unique<Item>(
+                  m_physics, block.getPosition().x, block.getPosition().y));
+            }
           }
         }
       }
@@ -203,6 +241,12 @@ void Level::checkCollisions(Player &player) {
   if (m_stompCooldown <= 0.0f) {
     for (auto &enemy : m_enemies) {
       if (!enemy->isAlive()) {
+        continue;
+      }
+      
+      // Skip dying Koopa shells (hit by fireball)
+      Koopa *dyingKoopa = dynamic_cast<Koopa *>(enemy.get());
+      if (dyingKoopa && dyingKoopa->isStomped()) {
         continue;
       }
 
@@ -261,6 +305,13 @@ void Level::draw(sf::RenderWindow &window) {
   for (auto &enemy : m_enemies) {
     enemy->draw(window);
   }
+  for (auto &fireball : m_fireballs) {
+    fireball->draw(window);
+  }
+}
+
+void Level::spawnFireball(float x, float y, float direction) {
+  m_fireballs.push_back(std::make_unique<Fireball>(m_physics, x, y, direction));
 }
 
 float Level::groundY() const { return m_groundY; }

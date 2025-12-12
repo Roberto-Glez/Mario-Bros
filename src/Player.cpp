@@ -6,7 +6,8 @@
 Player::Player(Physics& physics, float startX, float startY)
 : m_physics(physics), m_sprite(m_texture), m_width(32.0f), m_height(32.0f), m_canJump(false), m_isBig(false), m_isFireMario(false),
   m_isDead(false), m_isInvulnerable(false), m_invulnerableTimer(0.0f),
-  m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle)
+  m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f), m_currentFrame(0), m_facingRight(true), m_state(State::Idle),
+  m_fireballCooldown(0.0f), m_throwTimer(0.0f), m_isThrowing(false)
 {
     // ... (Constructor content unchanged) ...
     // Load Texture
@@ -140,8 +141,8 @@ void Player::handleInput(float dt)
     float impulse = b2Body_GetMass(m_bodyId) * velChange;
     b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){impulse, 0.0f}, true);
 
-    // Salto - impulse increased to reach ~3 blocks height
-    if ((sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) && m_canJump) {
+    // Salto - SOLO con Up (Space ahora es para fuego)
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) && m_canJump) {
         float jumpImpulse = -b2Body_GetMass(m_bodyId) * 11.0f;
         b2Body_ApplyLinearImpulseToCenter(m_bodyId, (b2Vec2){0.0f, jumpImpulse}, true);
         m_canJump = false;
@@ -196,7 +197,21 @@ void Player::update(float dt)
 
     // Variable gravity for snappier jumps (Mario-style)
     // Apply extra downward force when falling or when jump button released
-    bool jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
+    bool jumpHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up);
+
+    // Fireball cooldown
+    if (m_fireballCooldown > 0.0f) {
+        m_fireballCooldown -= dt;
+    }
+
+    // Throw animation timer
+    if (m_isThrowing) {
+        m_throwTimer += dt;
+        if (m_throwTimer >= THROW_ANIM_DURATION) {
+            m_isThrowing = false;
+            m_throwTimer = 0.0f;
+        }
+    }
     
     if (vel.y > 0.5f) {
         // Falling - apply extra gravity for faster descent
@@ -257,6 +272,14 @@ void Player::updateAnimation(float dt) {
             startFrame = 3; // Sprite index 3 (4th sprite) for crouch
             numFrames = 1;
             break;
+        case State::Throwing:
+            // Handled separately for Fire Mario
+            startFrame = 0;
+            numFrames = 1;
+            break;
+        case State::Dead:
+            // Handled separately below
+            break;
     }
 
     m_animationTimer += dt;
@@ -289,8 +312,28 @@ void Player::updateAnimation(float dt) {
         // - We want Feet (33) to align with Body Bottom (Center + 15).
         // - So Center should align with Sprite 18 (33 - 15).
         // - Let's use Origin 17.5 to center it well.
-        m_sprite.setTextureRect(sf::IntRect({left, 0}, {18, 36}));
-        m_sprite.setOrigin({18.0f / 2.0f, 23.0f});
+        
+        // Check if Fire Mario is throwing
+        if (m_isFireMario && m_isThrowing) {
+            // Special throwing animation for Fire Mario
+            b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
+            bool isMoving = std::abs(vel.x) > 0.5f;
+            
+            if (isMoving) {
+                // Running while throwing: sprites at (288, 2) and onwards
+                int throwRunFrame = m_currentFrame % 3;
+                int throwLeft = 288 + throwRunFrame * 18;
+                m_sprite.setTextureRect(sf::IntRect({throwLeft, 2}, {18, 35}));
+            } else {
+                // Idle throwing: sprite at (270, 2) - shifted 1px right to crop left edge
+                m_sprite.setTextureRect(sf::IntRect({270, 2}, {18, 35}));
+            }
+            m_sprite.setOrigin({18.0f / 2.0f, 20.0f}); // Lower origin for throwing sprites
+        } else {
+            // Normal animation
+            m_sprite.setTextureRect(sf::IntRect({left, 0}, {18, 35}));
+            m_sprite.setOrigin({18.0f / 2.0f, 22.0f});
+        }
         
         // Switch texture based on fire state
         if (m_isFireMario) {
@@ -378,9 +421,9 @@ void Player::grow() {
 
 void Player::becomeFireMario() {
     if (!m_isBig) {
-        // Must be big first - call grow instead
+        // Small Mario grabs Fire Flower: grow first, then become Fire
         grow();
-        return;
+        // Don't return - continue to become Fire Mario
     }
     
     if (m_isFireMario) return; // Already fire mario
@@ -491,4 +534,22 @@ void Player::die() {
     b2CreatePolygonShape(newBody, &shapeDef, &box);
     
     m_bodyId = newBody;
+}
+
+bool Player::tryShootFireball() {
+    // Only Fire Mario can shoot
+    if (!m_isFireMario || m_isDead) return false;
+    
+    // Check cooldown
+    if (m_fireballCooldown > 0.0f) return false;
+    
+    // Check if Space is pressed
+    if (!sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) return false;
+    
+    // Fire!
+    m_fireballCooldown = FIREBALL_COOLDOWN;
+    m_isThrowing = true;
+    m_throwTimer = 0.0f;
+    
+    return true;
 }

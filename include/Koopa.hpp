@@ -5,7 +5,7 @@
 
 class Koopa : public Enemy {
 public:
-    enum class KoopaState { Walking, Shell, ShellMoving };
+    enum class KoopaState { Walking, Shell, ShellMoving, ShellDying };
     
     Koopa(Physics& physics, float x, float y);
     
@@ -15,6 +15,7 @@ public:
     bool isShell() const { return m_koopaState == KoopaState::Shell || m_koopaState == KoopaState::ShellMoving; }
     bool isIdleShell() const { return m_koopaState == KoopaState::Shell; }
     void kick(float direction, float kickerAbsVelocityX = 0.0f);  // Kick shell in a direction (-1 left, 1 right)
+    void killByFireball();  // Kill shell with fireball - jump and flip animation
 
 protected:
     void updateAnimation(float dt) override;

@@ -7,7 +7,7 @@ public:
     enum class Type { Question, Empty };
 
     Block(Physics& physics, float x, float y);
-    void hit();
+    bool hit();  // Returns true if item should spawn (first hit only)
     void draw(sf::RenderWindow& window);
     sf::FloatRect getBounds() const;
     bool isActive() const { return m_active; }
