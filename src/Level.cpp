@@ -216,12 +216,16 @@ Level::Level(Physics &physics, float width, float height)
   b2ShapeDef wallShapeDef = b2DefaultShapeDef();
   b2CreatePolygonShape(wallId, &wallShapeDef, &wallBox);
 
-  // Bloques distribuidos a lo largo del nivel extendido
-  m_blocks.emplace_back(m_physics, 1800.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 2100.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 2400.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 2700.0f, m_groundY - 64.0f);
-  m_blocks.emplace_back(m_physics, 3000.0f, m_groundY - 64.0f);
+  // Bloques distribuidos a lo largo del nivel extendido (alineados a la cuadrícula)
+  // Altura: 3 bloques de espacio vacío = 96px. Centro del bloque = 96 + 16 = 112px arriba del suelo.
+  float blockY = m_groundY - 112.0f;
+  
+  // X alineados a centros de tiles (N * 32 + 16)
+  m_blocks.emplace_back(m_physics, 1808.0f, blockY); // Tile 56
+  m_blocks.emplace_back(m_physics, 2096.0f, blockY); // Tile 65
+  m_blocks.emplace_back(m_physics, 2416.0f, blockY); // Tile 75
+  m_blocks.emplace_back(m_physics, 2704.0f, blockY); // Tile 84
+  m_blocks.emplace_back(m_physics, 2992.0f, blockY); // Tile 93
 
   // Nuevos enemigos solicitados
   // Goomba en X=320 eliminado

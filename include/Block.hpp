@@ -8,6 +8,15 @@ public:
   enum class Type { Question, Empty };
 
   Block(Physics &physics, float x, float y);
+  
+  // Disable copying to avoid expensive texture copies and sprite pointer issues
+  Block(const Block&) = delete;
+  Block& operator=(const Block&) = delete;
+
+  // Enable moving
+  Block(Block&& other) noexcept;
+  Block& operator=(Block&& other) noexcept;
+
   bool hit(); // Returns true if item should spawn (first hit only)
   void draw(sf::RenderWindow &window);
   sf::FloatRect getBounds() const;
@@ -20,10 +29,9 @@ public:
 private:
   void updateTexture();
 
-  Physics &m_physics;
+  Physics *m_physics;
   b2BodyId m_bodyId;
-  sf::Texture m_texture; // We might want to clear this if sharing textures, but
-                         // for now individual texture
+  sf::Texture m_texture; 
   sf::Sprite m_sprite;
 
   Type m_type;
