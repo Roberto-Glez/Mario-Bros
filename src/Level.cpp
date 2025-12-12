@@ -6,9 +6,12 @@
 Level::Level(Physics &physics, float width, float height)
     : m_physics(physics), m_width(width), m_height(height),
       m_stompCooldown(0.0f) {
-  // Load Texture
+  // Load Textures
   if (!m_texture.loadFromFile("assets/images/tilesets.png")) {
     std::cerr << "Error loading tilesets.png" << std::endl;
+  }
+  if (!m_texture2.loadFromFile("assets/images/plataformas.png")) {
+    std::cerr << "Error loading plataformas.png" << std::endl;
   }
 
   // Config Setup
@@ -20,15 +23,31 @@ Level::Level(Physics &physics, float width, float height)
   static constexpr int TEX_TILE_SIZE = 16; // Tamaño del sprite en textura
   int numTilesX = static_cast<int>(LEVEL_WIDTH / DISPLAY_TILE_SIZE) + 1;
 
-  m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
-  m_groundVertices.resize(numTilesX * 6); // Un quad por columna
+  // Sección alternativa: desde X=640 por 17 bloques
+  static constexpr int ALT_START_TILE = 640 / DISPLAY_TILE_SIZE; // Tile 20
+  static constexpr int ALT_NUM_TILES = 17;
+  static constexpr int ALT_END_TILE = ALT_START_TILE + ALT_NUM_TILES; // Tile 37
 
-  int texU = 80;
+  // Contar tiles normales (excluyendo la sección alternativa)
+  int normalTiles = numTilesX - ALT_NUM_TILES;
+
+  m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+  m_groundVertices.resize(normalTiles * 6);
+
+  // Segundo VertexArray para la sección alternativa
+  m_groundVertices2.setPrimitiveType(sf::PrimitiveType::Triangles);
+  m_groundVertices2.resize(ALT_NUM_TILES * 6);
+
+  int texU = 80; // Sprite normal de tilesets.png
   int texV = 176;
 
-  for (int i = 0; i < numTilesX; ++i) {
-    sf::Vertex *tri = &m_groundVertices[i * 6];
+  int texU2 = 272; // Sprite alternativo de plataformas.png
+  int texV2 = 16;
 
+  int normalIdx = 0;
+  int altIdx = 0;
+
+  for (int i = 0; i < numTilesX; ++i) {
     float x = i * DISPLAY_TILE_SIZE;
     float y = m_groundY;
 
@@ -38,27 +57,57 @@ Level::Level(Physics &physics, float width, float height)
     sf::Vector2f p2(x + DISPLAY_TILE_SIZE, y + DISPLAY_TILE_SIZE);
     sf::Vector2f p3(x, y + DISPLAY_TILE_SIZE);
 
-    // Texture Coords (sprite de 16x16 en posición 80,176)
-    sf::Vector2f t0((float)texU, (float)texV);
-    sf::Vector2f t1((float)texU + TEX_TILE_SIZE, (float)texV);
-    sf::Vector2f t2((float)texU + TEX_TILE_SIZE, (float)texV + TEX_TILE_SIZE);
-    sf::Vector2f t3((float)texU, (float)texV + TEX_TILE_SIZE);
+    // Determinar si este tile está en la sección alternativa
+    bool isAltSection = (i >= ALT_START_TILE && i < ALT_END_TILE);
 
-    // Triangle 1 (0, 1, 2)
-    tri[0].position = p0;
-    tri[0].texCoords = t0;
-    tri[1].position = p1;
-    tri[1].texCoords = t1;
-    tri[2].position = p2;
-    tri[2].texCoords = t2;
+    if (isAltSection) {
+      // Usar textura alternativa (plataformas.png)
+      sf::Vertex *tri = &m_groundVertices2[altIdx * 6];
 
-    // Triangle 2 (2, 3, 0)
-    tri[3].position = p2;
-    tri[3].texCoords = t2;
-    tri[4].position = p3;
-    tri[4].texCoords = t3;
-    tri[5].position = p0;
-    tri[5].texCoords = t0;
+      sf::Vector2f t0((float)texU2, (float)texV2);
+      sf::Vector2f t1((float)texU2 + TEX_TILE_SIZE, (float)texV2);
+      sf::Vector2f t2((float)texU2 + TEX_TILE_SIZE,
+                      (float)texV2 + TEX_TILE_SIZE);
+      sf::Vector2f t3((float)texU2, (float)texV2 + TEX_TILE_SIZE);
+
+      tri[0].position = p0;
+      tri[0].texCoords = t0;
+      tri[1].position = p1;
+      tri[1].texCoords = t1;
+      tri[2].position = p2;
+      tri[2].texCoords = t2;
+      tri[3].position = p2;
+      tri[3].texCoords = t2;
+      tri[4].position = p3;
+      tri[4].texCoords = t3;
+      tri[5].position = p0;
+      tri[5].texCoords = t0;
+
+      altIdx++;
+    } else {
+      // Usar textura normal (tilesets.png)
+      sf::Vertex *tri = &m_groundVertices[normalIdx * 6];
+
+      sf::Vector2f t0((float)texU, (float)texV);
+      sf::Vector2f t1((float)texU + TEX_TILE_SIZE, (float)texV);
+      sf::Vector2f t2((float)texU + TEX_TILE_SIZE, (float)texV + TEX_TILE_SIZE);
+      sf::Vector2f t3((float)texU, (float)texV + TEX_TILE_SIZE);
+
+      tri[0].position = p0;
+      tri[0].texCoords = t0;
+      tri[1].position = p1;
+      tri[1].texCoords = t1;
+      tri[2].position = p2;
+      tri[2].texCoords = t2;
+      tri[3].position = p2;
+      tri[3].texCoords = t2;
+      tri[4].position = p3;
+      tri[4].texCoords = t3;
+      tri[5].position = p0;
+      tri[5].texCoords = t0;
+
+      normalIdx++;
+    }
   }
 
   // Cuerpo estático Box2D v3
@@ -139,6 +188,32 @@ Level::Level(Physics &physics, float width, float height)
 
     m_platforms.push_back(plat);
   }
+
+  // Cargar textura de plantas para decoraciones
+  if (!m_plantasTexture.loadFromFile("assets/images/plantas.png")) {
+    std::cerr << "Error loading plantas.png" << std::endl;
+  }
+
+  // Sprite decorativo en X=256 (planta de fondo)
+  {
+    sf::Sprite decoration(m_plantasTexture);
+    decoration.setTextureRect(
+        sf::IntRect({5, 150}, {16, 16})); // Sprite en (5,150) de 16x16
+    decoration.setScale({2.0f, 2.0f});    // Escalar a 32x32
+    decoration.setPosition(
+        {256.0f, m_groundY - 32.0f}); // Posicionado justo encima del suelo
+    m_decorations.push_back(decoration);
+  }
+
+  // Sprite decorativo azul en X=288 (al lado del anterior)
+  {
+    sf::Sprite decoration(m_plantasTexture);
+    decoration.setTextureRect(sf::IntRect({5, 150}, {16, 16})); // Mismo sprite
+    decoration.setScale({2.0f, 2.0f});                   // Escalar a 32x32
+    decoration.setPosition({288.0f, m_groundY - 32.0f}); // Al lado derecho
+    decoration.setColor(sf::Color(100, 150, 255));       // Tinte azul
+    m_decorations.push_back(decoration);
+  }
 }
 
 void Level::update(float dt) {
@@ -166,11 +241,13 @@ void Level::update(float dt) {
 
   // Check Fireball vs Enemy collisions
   for (auto &fireball : m_fireballs) {
-    if (!fireball->isAlive()) continue;
-    
+    if (!fireball->isAlive())
+      continue;
+
     for (auto &enemy : m_enemies) {
-      if (!enemy->isAlive()) continue;
-      
+      if (!enemy->isAlive())
+        continue;
+
       if (fireball->getBounds().findIntersection(enemy->getBounds())) {
         // Check if it's a Koopa shell
         Koopa *koopa = dynamic_cast<Koopa *>(enemy.get());
@@ -222,7 +299,8 @@ void Level::checkCollisions(Player &player) {
         if (block.hit()) {
           // Spawn Item based on block index and Mario's state
           // Block 0 = Mushroom only
-          // Block 1+ = Fire Flower block (Mushroom if small, Fire Flower if big)
+          // Block 1+ = Fire Flower block (Mushroom if small, Fire Flower if
+          // big)
           if (i == 0) {
             // First block always spawns Mushroom
             m_items.push_back(std::make_unique<Item>(
@@ -267,7 +345,6 @@ void Level::checkCollisions(Player &player) {
       if (!enemy->isAlive()) {
         continue;
       }
-      
       // Skip dying enemies (except Koopa shells which need physical interaction)
       // Check if it's a Koopa to allow shell interactions even if stomped
       Koopa *koopaEnemy = dynamic_cast<Koopa *>(enemy.get());
@@ -356,8 +433,15 @@ void Level::draw(sf::RenderWindow &window) {
     }
   }
 
-  // Dibujar suelo
+  // Dibujar suelo (sección normal con tilesets.png)
   window.draw(m_groundVertices, &m_texture);
+  // Dibujar suelo (sección alternativa con plataformas.png)
+  window.draw(m_groundVertices2, &m_texture2);
+
+  // Dibujar decoraciones de fondo
+  for (auto &decoration : m_decorations) {
+    window.draw(decoration);
+  }
 
   for (auto &block : m_blocks) {
     block.draw(window);
