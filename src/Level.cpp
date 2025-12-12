@@ -25,11 +25,16 @@ Level::Level(Physics &physics, float width, float height)
 
   // Sección alternativa: desde X=640 por 17 bloques
   static constexpr int ALT_START_TILE = 640 / DISPLAY_TILE_SIZE; // Tile 20
-  static constexpr int ALT_NUM_TILES = 17;
+  static constexpr int ALT_NUM_TILES =
+      16; // Reducido de 17 a 16 para excluir tile 37
   static constexpr int ALT_END_TILE = ALT_START_TILE + ALT_NUM_TILES; // Tile 37
 
-  // Contar tiles normales (excluyendo la sección alternativa)
-  int normalTiles = numTilesX - ALT_NUM_TILES;
+  // Tercera sección: desde X=1184 (tile 37) hasta el final
+  static constexpr int THIRD_START_TILE = 1184 / DISPLAY_TILE_SIZE; // Tile 37
+  int thirdNumTiles = numTilesX - THIRD_START_TILE;
+
+  // Contar tiles normales (excluyendo las secciones alternativa y tercera)
+  int normalTiles = numTilesX - ALT_NUM_TILES - thirdNumTiles;
 
   m_groundVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
   m_groundVertices.resize(normalTiles * 6);
@@ -38,14 +43,22 @@ Level::Level(Physics &physics, float width, float height)
   m_groundVertices2.setPrimitiveType(sf::PrimitiveType::Triangles);
   m_groundVertices2.resize(ALT_NUM_TILES * 6);
 
+  // Tercer VertexArray para la tercera sección
+  m_groundVertices3.setPrimitiveType(sf::PrimitiveType::Triangles);
+  m_groundVertices3.resize(thirdNumTiles * 6);
+
   int texU = 80; // Sprite normal de tilesets.png
   int texV = 176;
 
   int texU2 = 272; // Sprite alternativo de plataformas.png
   int texV2 = 16;
 
+  int texU3 = 240; // Sprite tercera sección de tilesets.png
+  int texV3 = 96;
+
   int normalIdx = 0;
   int altIdx = 0;
+  int thirdIdx = 0;
 
   for (int i = 0; i < numTilesX; ++i) {
     float x = i * DISPLAY_TILE_SIZE;
@@ -57,10 +70,35 @@ Level::Level(Physics &physics, float width, float height)
     sf::Vector2f p2(x + DISPLAY_TILE_SIZE, y + DISPLAY_TILE_SIZE);
     sf::Vector2f p3(x, y + DISPLAY_TILE_SIZE);
 
-    // Determinar si este tile está en la sección alternativa
+    // Determinar qué sección usar
     bool isAltSection = (i >= ALT_START_TILE && i < ALT_END_TILE);
+    bool isThirdSection = (i >= THIRD_START_TILE);
 
-    if (isAltSection) {
+    if (isThirdSection) {
+      // Usar tercera textura (tilesets.png sprite 240,96)
+      sf::Vertex *tri = &m_groundVertices3[thirdIdx * 6];
+
+      sf::Vector2f t0((float)texU3, (float)texV3);
+      sf::Vector2f t1((float)texU3 + TEX_TILE_SIZE, (float)texV3);
+      sf::Vector2f t2((float)texU3 + TEX_TILE_SIZE,
+                      (float)texV3 + TEX_TILE_SIZE);
+      sf::Vector2f t3((float)texU3, (float)texV3 + TEX_TILE_SIZE);
+
+      tri[0].position = p0;
+      tri[0].texCoords = t0;
+      tri[1].position = p1;
+      tri[1].texCoords = t1;
+      tri[2].position = p2;
+      tri[2].texCoords = t2;
+      tri[3].position = p2;
+      tri[3].texCoords = t2;
+      tri[4].position = p3;
+      tri[4].texCoords = t3;
+      tri[5].position = p0;
+      tri[5].texCoords = t0;
+
+      thirdIdx++;
+    } else if (isAltSection) {
       // Usar textura alternativa (plataformas.png)
       sf::Vertex *tri = &m_groundVertices2[altIdx * 6];
 
@@ -159,16 +197,15 @@ Level::Level(Physics &physics, float width, float height)
   m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2200.0f, m_groundY));
   m_enemies.push_back(std::make_unique<Koopa>(m_physics, 2500.0f, m_groundY));
   m_enemies.push_back(std::make_unique<Goomba>(m_physics, 2800.0f, m_groundY));
-  // Plataforma sólida naranja en X=320, 96px arriba del suelo (3 bloques de
-  // ancho) Usamos UN SOLO cuerpo físico para evitar ghost collisions
+  // Plataforma con textura en X=320, 96px arriba del suelo (3 bloques de ancho)
   {
     Platform plat;
     plat.x = 320.0f;
-    plat.y = m_groundY - 96.0f; // 96px arriba del suelo
-    plat.width = 96.0f;         // 3 bloques de 32px = 96px total
-    plat.height = 32.0f;
+    plat.y = m_groundY - 96.0f;
+    plat.width = 96.0f;  // 3 bloques
+    plat.height = 32.0f; // 1 bloque
 
-    // Cuerpo físico estático (uno solo para toda la plataforma)
+    // Cuerpo físico estático
     b2BodyDef platBodyDef = b2DefaultBodyDef();
     platBodyDef.type = b2_staticBody;
     platBodyDef.position =
@@ -181,10 +218,1005 @@ Level::Level(Physics &physics, float width, float height)
     b2ShapeDef platShapeDef = b2DefaultShapeDef();
     b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
 
-    // Visual naranja (dibuja los 3 bloques como uno solo)
-    plat.shape.setSize({plat.width, plat.height});
-    plat.shape.setPosition({plat.x, plat.y});
-    plat.shape.setFillColor(sf::Color(255, 165, 0)); // Naranja
+    // Visual con tiles de tilesets.png (240,96) 16x16 escalado a 32x32
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        // Posiciones del quad (32x32)
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        // Coordenadas de textura (16x16 en la imagen)
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma con textura en X=1280, justo encima del suelo
+  {
+    Platform plat;
+    plat.x = 1280.0f;
+    plat.y = m_groundY - 32.0f;
+    plat.width = 96.0f;
+    plat.height = 32.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma con textura en X=1856 (bloque 58), 2 bloques de altura
+  {
+    Platform plat;
+    plat.x = 1856.0f;
+    plat.y = m_groundY - 64.0f;
+    plat.width = 192.0f;
+    plat.height = 64.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma con textura en X=1952 (bloque 61), 5 bloques de altura
+  {
+    Platform plat;
+    plat.x = 1952.0f;
+    plat.y = m_groundY - 160.0f;
+    plat.width = 128.0f;
+    plat.height = 160.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma con textura en X=2080 (bloque 65), 8 bloques de altura
+  {
+    Platform plat;
+    plat.x = 2080.0f;            // Bloque horizontal 65 (65 * 32 = 2080)
+    plat.y = m_groundY - 256.0f; // 8 bloques arriba del suelo (8 * 32 = 256px)
+    plat.width = 192.0f;         // 6 bloques de ancho (6 * 32 = 192px)
+    plat.height = 256.0f;        // 8 bloques de altura (8 * 32 = 256px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Bloque naranja en X=2368, a 256px del suelo (1 bloque)
+  {
+    Platform plat;
+    plat.x = 2368.0f;            // Pixel 2368 horizontal
+    plat.y = m_groundY - 256.0f; // 256px arriba del suelo
+    plat.width = 32.0f;          // 1 bloque de ancho
+    plat.height = 32.0f;         // 1 bloque de altura
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(6);
+
+    sf::Vector2f p0(plat.x, plat.y);
+    sf::Vector2f p1(plat.x + 32.0f, plat.y);
+    sf::Vector2f p2(plat.x + 32.0f, plat.y + 32.0f);
+    sf::Vector2f p3(plat.x, plat.y + 32.0f);
+
+    sf::Vector2f t0(240.0f, 96.0f);
+    sf::Vector2f t1(256.0f, 96.0f);
+    sf::Vector2f t2(256.0f, 112.0f);
+    sf::Vector2f t3(240.0f, 112.0f);
+
+    plat.vertices[0].position = p0;
+    plat.vertices[0].texCoords = t0;
+    plat.vertices[1].position = p1;
+    plat.vertices[1].texCoords = t1;
+    plat.vertices[2].position = p2;
+    plat.vertices[2].texCoords = t2;
+    plat.vertices[3].position = p2;
+    plat.vertices[3].texCoords = t2;
+    plat.vertices[4].position = p3;
+    plat.vertices[4].texCoords = t3;
+    plat.vertices[5].position = p0;
+    plat.vertices[5].texCoords = t0;
+
+    m_platforms.push_back(plat);
+  }
+
+  // Bloque naranja en X=2496, a 320px del suelo (1 bloque)
+  {
+    Platform plat;
+    plat.x = 2496.0f;            // Pixel 2496 horizontal
+    plat.y = m_groundY - 320.0f; // 320px arriba del suelo
+    plat.width = 32.0f;          // 1 bloque de ancho
+    plat.height = 32.0f;         // 1 bloque de altura
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(6);
+
+    sf::Vector2f p0(plat.x, plat.y);
+    sf::Vector2f p1(plat.x + 32.0f, plat.y);
+    sf::Vector2f p2(plat.x + 32.0f, plat.y + 32.0f);
+    sf::Vector2f p3(plat.x, plat.y + 32.0f);
+
+    sf::Vector2f t0(240.0f, 96.0f);
+    sf::Vector2f t1(256.0f, 96.0f);
+    sf::Vector2f t2(256.0f, 112.0f);
+    sf::Vector2f t3(240.0f, 112.0f);
+
+    plat.vertices[0].position = p0;
+    plat.vertices[0].texCoords = t0;
+    plat.vertices[1].position = p1;
+    plat.vertices[1].texCoords = t1;
+    plat.vertices[2].position = p2;
+    plat.vertices[2].texCoords = t2;
+    plat.vertices[3].position = p2;
+    plat.vertices[3].texCoords = t2;
+    plat.vertices[4].position = p3;
+    plat.vertices[4].texCoords = t3;
+    plat.vertices[5].position = p0;
+    plat.vertices[5].texCoords = t0;
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma con textura en X=2688, 5 bloques de alto × 7 de ancho
+  {
+    Platform plat;
+    plat.x = 2688.0f;            // Pixel 2688 horizontal
+    plat.y = m_groundY - 160.0f; // 5 bloques arriba del suelo (5 * 32 = 160px)
+    plat.width = 224.0f;         // 7 bloques de ancho (7 * 32 = 224px)
+    plat.height = 160.0f;        // 5 bloques de altura (5 * 32 = 160px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Isla flotante en X=3040, separada 160px del suelo (10 bloques × 3 bloques)
+  {
+    Platform plat;
+    plat.x = 3040.0f;            // Pixel 3040 horizontal
+    plat.y = m_groundY - 256.0f; // 160px de separación + 96px de altura = 256px
+    plat.width = 320.0f;         // 10 bloques de ancho (10 * 32 = 320px)
+    plat.height = 96.0f;         // 3 bloques de altura (3 * 32 = 96px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Plataforma en X=3520, 11 bloques de altura × 8 bloques de ancho
+  {
+    Platform plat;
+    plat.x = 3520.0f;            // Pixel 3520 horizontal
+    plat.y = m_groundY - 352.0f; // 11 bloques desde el suelo (11 * 32 = 352px)
+    plat.width = 256.0f;         // 8 bloques de ancho (8 * 32 = 256px)
+    plat.height = 352.0f;        // 11 bloques de altura (11 * 32 = 352px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Sección izquierda de la plataforma (antes del pasaje)
+  // X=4000, ancho=288px (9 bloques), altura=14 bloques
+  {
+    Platform plat;
+    plat.x = 4000.0f;
+    plat.y = m_groundY - 448.0f;
+    plat.width = 288.0f;  // 9 bloques de ancho
+    plat.height = 448.0f; // 14 bloques de altura
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Sección debajo del pasaje (7 bloques de altura desde suelo)
+  // X=4288, ancho=352px (11 bloques), altura=7 bloques (224px)
+  {
+    Platform plat;
+    plat.x = 4288.0f;
+    plat.y = m_groundY - 224.0f; // 7 bloques desde el suelo
+    plat.width = 352.0f;         // 11 bloques de ancho
+    plat.height = 224.0f;        // 7 bloques de altura
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Sección arriba del pasaje (desde 12 bloques de altura hasta el tope)
+  // X=4288, ancho=352px (11 bloques), altura=2 bloques (64px)
+  {
+    Platform plat;
+    plat.x = 4288.0f;
+    plat.y = m_groundY - 448.0f; // Desde el tope de la plataforma original
+    plat.width = 352.0f;         // 11 bloques de ancho
+    plat.height = 64.0f;         // 2 bloques de altura (14 - 7 - 5 = 2)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Bloque flotante en X=3776, a 3 bloques de altura (96px)
+  {
+    Platform plat;
+    plat.x = 3776.0f;
+    plat.y = m_groundY - 96.0f;
+    plat.width = 32.0f;
+    plat.height = 32.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(6);
+
+    sf::Vector2f p0(plat.x, plat.y);
+    sf::Vector2f p1(plat.x + 32.0f, plat.y);
+    sf::Vector2f p2(plat.x + 32.0f, plat.y + 32.0f);
+    sf::Vector2f p3(plat.x, plat.y + 32.0f);
+
+    sf::Vector2f t0(240.0f, 96.0f);
+    sf::Vector2f t1(256.0f, 96.0f);
+    sf::Vector2f t2(256.0f, 112.0f);
+    sf::Vector2f t3(240.0f, 112.0f);
+
+    plat.vertices[0].position = p0;
+    plat.vertices[0].texCoords = t0;
+    plat.vertices[1].position = p1;
+    plat.vertices[1].texCoords = t1;
+    plat.vertices[2].position = p2;
+    plat.vertices[2].texCoords = t2;
+    plat.vertices[3].position = p2;
+    plat.vertices[3].texCoords = t2;
+    plat.vertices[4].position = p3;
+    plat.vertices[4].texCoords = t3;
+    plat.vertices[5].position = p0;
+    plat.vertices[5].texCoords = t0;
+
+    m_platforms.push_back(plat);
+  }
+
+  // Bloque flotante en X=3904, a 6 bloques de altura (192px)
+  {
+    Platform plat;
+    plat.x = 3904.0f;
+    plat.y = m_groundY - 192.0f;
+    plat.width = 32.0f;
+    plat.height = 32.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(6);
+
+    sf::Vector2f p0(plat.x, plat.y);
+    sf::Vector2f p1(plat.x + 32.0f, plat.y);
+    sf::Vector2f p2(plat.x + 32.0f, plat.y + 32.0f);
+    sf::Vector2f p3(plat.x, plat.y + 32.0f);
+
+    sf::Vector2f t0(240.0f, 96.0f);
+    sf::Vector2f t1(256.0f, 96.0f);
+    sf::Vector2f t2(256.0f, 112.0f);
+    sf::Vector2f t3(240.0f, 112.0f);
+
+    plat.vertices[0].position = p0;
+    plat.vertices[0].texCoords = t0;
+    plat.vertices[1].position = p1;
+    plat.vertices[1].texCoords = t1;
+    plat.vertices[2].position = p2;
+    plat.vertices[2].texCoords = t2;
+    plat.vertices[3].position = p2;
+    plat.vertices[3].texCoords = t2;
+    plat.vertices[4].position = p3;
+    plat.vertices[4].texCoords = t3;
+    plat.vertices[5].position = p0;
+    plat.vertices[5].texCoords = t0;
+
+    m_platforms.push_back(plat);
+  }
+
+  // Bloque flotante en X=3776, a 9 bloques de altura (288px)
+  {
+    Platform plat;
+    plat.x = 3776.0f;
+    plat.y = m_groundY - 288.0f;
+    plat.width = 32.0f;
+    plat.height = 32.0f;
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(6);
+
+    sf::Vector2f p0(plat.x, plat.y);
+    sf::Vector2f p1(plat.x + 32.0f, plat.y);
+    sf::Vector2f p2(plat.x + 32.0f, plat.y + 32.0f);
+    sf::Vector2f p3(plat.x, plat.y + 32.0f);
+
+    sf::Vector2f t0(240.0f, 96.0f);
+    sf::Vector2f t1(256.0f, 96.0f);
+    sf::Vector2f t2(256.0f, 112.0f);
+    sf::Vector2f t3(240.0f, 112.0f);
+
+    plat.vertices[0].position = p0;
+    plat.vertices[0].texCoords = t0;
+    plat.vertices[1].position = p1;
+    plat.vertices[1].texCoords = t1;
+    plat.vertices[2].position = p2;
+    plat.vertices[2].texCoords = t2;
+    plat.vertices[3].position = p2;
+    plat.vertices[3].texCoords = t2;
+    plat.vertices[4].position = p3;
+    plat.vertices[4].texCoords = t3;
+    plat.vertices[5].position = p0;
+    plat.vertices[5].texCoords = t0;
+
+    m_platforms.push_back(plat);
+  }
+
+  // Isla naranja en X=4640, a 5 bloques de altura, 5 bloques de ancho, 2 de
+  // alto
+  {
+    Platform plat;
+    plat.x = 4640.0f; // Pixel 4640 horizontal
+    plat.y =
+        m_groundY - 224.0f; // 5 bloques separación + 2 bloques altura = 224px
+    plat.width = 160.0f;    // 5 bloques de ancho (5 * 32 = 160px)
+    plat.height = 64.0f;    // 2 bloques de altura (2 * 32 = 64px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        sf::Vector2f t0(240.0f, 96.0f);
+        sf::Vector2f t1(256.0f, 96.0f);
+        sf::Vector2f t2(256.0f, 112.0f);
+        sf::Vector2f t3(240.0f, 112.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
+
+    m_platforms.push_back(plat);
+  }
+
+  // Isla en X=4800, separada 5 bloques del suelo, 25 bloques de ancho, 25 de
+  // alto
+  {
+    Platform plat;
+    plat.x = 4800.0f; // Pixel 4800 horizontal
+    plat.y =
+        m_groundY - 960.0f; // 5 bloques separación + 25 bloques altura = 960px
+    plat.width = 800.0f;    // 25 bloques de ancho (25 * 32 = 800px)
+    plat.height = 800.0f;   // 25 bloques de altura (25 * 32 = 800px)
+
+    b2BodyDef platBodyDef = b2DefaultBodyDef();
+    platBodyDef.type = b2_staticBody;
+    platBodyDef.position =
+        (b2Vec2){(plat.x + plat.width / 2.0f) / Physics::SCALE,
+                 (plat.y + plat.height / 2.0f) / Physics::SCALE};
+    plat.bodyId = b2CreateBody(m_physics.worldId(), &platBodyDef);
+
+    b2Polygon platBox = b2MakeBox((plat.width / 2.0f) / Physics::SCALE,
+                                  (plat.height / 2.0f) / Physics::SCALE);
+    b2ShapeDef platShapeDef = b2DefaultShapeDef();
+    b2CreatePolygonShape(plat.bodyId, &platShapeDef, &platBox);
+
+    int tilesX = static_cast<int>(plat.width / 32.0f);
+    int tilesY = static_cast<int>(plat.height / 32.0f);
+    plat.vertices.setPrimitiveType(sf::PrimitiveType::Triangles);
+    plat.vertices.resize(tilesX * tilesY * 6);
+
+    for (int ty = 0; ty < tilesY; ++ty) {
+      for (int tx = 0; tx < tilesX; ++tx) {
+        int idx = (ty * tilesX + tx) * 6;
+        float px = plat.x + tx * 32.0f;
+        float py = plat.y + ty * 32.0f;
+
+        sf::Vector2f p0(px, py);
+        sf::Vector2f p1(px + 32.0f, py);
+        sf::Vector2f p2(px + 32.0f, py + 32.0f);
+        sf::Vector2f p3(px, py + 32.0f);
+
+        // Sprite de tilesets.png en (320,16) de 16x16
+        sf::Vector2f t0(320.0f, 16.0f);
+        sf::Vector2f t1(336.0f, 16.0f);
+        sf::Vector2f t2(336.0f, 32.0f);
+        sf::Vector2f t3(320.0f, 32.0f);
+
+        plat.vertices[idx + 0].position = p0;
+        plat.vertices[idx + 0].texCoords = t0;
+        plat.vertices[idx + 1].position = p1;
+        plat.vertices[idx + 1].texCoords = t1;
+        plat.vertices[idx + 2].position = p2;
+        plat.vertices[idx + 2].texCoords = t2;
+        plat.vertices[idx + 3].position = p2;
+        plat.vertices[idx + 3].texCoords = t2;
+        plat.vertices[idx + 4].position = p3;
+        plat.vertices[idx + 4].texCoords = t3;
+        plat.vertices[idx + 5].position = p0;
+        plat.vertices[idx + 5].texCoords = t0;
+      }
+    }
 
     m_platforms.push_back(plat);
   }
@@ -345,8 +1377,9 @@ void Level::checkCollisions(Player &player) {
       if (!enemy->isAlive()) {
         continue;
       }
-      // Skip dying enemies (except Koopa shells which need physical interaction)
-      // Check if it's a Koopa to allow shell interactions even if stomped
+      // Skip dying enemies (except Koopa shells which need physical
+      // interaction) Check if it's a Koopa to allow shell interactions even if
+      // stomped
       Koopa *koopaEnemy = dynamic_cast<Koopa *>(enemy.get());
       bool isKoopaShell = (koopaEnemy && koopaEnemy->isShell());
 
@@ -357,7 +1390,7 @@ void Level::checkCollisions(Player &player) {
 
       // If it IS a shell, but it's dying (falling off screen), skip it
       if (isKoopaShell && koopaEnemy->isStomped() && !koopaEnemy->isShell()) {
-           continue; 
+        continue;
       }
 
       sf::FloatRect enemyBounds = enemy->getBounds();
@@ -437,6 +1470,8 @@ void Level::draw(sf::RenderWindow &window) {
   window.draw(m_groundVertices, &m_texture);
   // Dibujar suelo (sección alternativa con plataformas.png)
   window.draw(m_groundVertices2, &m_texture2);
+  // Dibujar suelo (tercera sección desde X=1216 con tilesets.png)
+  window.draw(m_groundVertices3, &m_texture);
 
   // Dibujar decoraciones de fondo
   for (auto &decoration : m_decorations) {
@@ -456,26 +1491,30 @@ void Level::draw(sf::RenderWindow &window) {
     fireball->draw(window);
   }
 
-  // Dibujar plataformas sólidas
+  // Dibujar plataformas sólidas con textura
   for (auto &plat : m_platforms) {
-    window.draw(plat.shape);
+    window.draw(plat.vertices, &m_texture);
   }
 
   // Marcadores de debug para identificar límites de pantalla
-  // Cada pantalla es de 800px de ancho, hay 4 pantallas
+  // Cada pantalla es de 800px de ancho, hay 8 pantallas
   static constexpr float SCREEN_WIDTH = 800.0f;
   static constexpr float SCREEN_HEIGHT = 600.0f;
-  static constexpr int NUM_SCREENS = 4;
+  static constexpr int NUM_SCREENS = 8;
   static constexpr float MARKER_SIZE = 32.0f;
 
   sf::RectangleShape marker({MARKER_SIZE, MARKER_SIZE});
 
   // Colores diferentes para cada pantalla
   sf::Color screenColors[NUM_SCREENS] = {
-      sf::Color::Red,   // Pantalla 1
-      sf::Color::Green, // Pantalla 2
-      sf::Color::Blue,  // Pantalla 3
-      sf::Color::Yellow // Pantalla 4
+      sf::Color::Red,         // Pantalla 1
+      sf::Color::Green,       // Pantalla 2
+      sf::Color::Blue,        // Pantalla 3
+      sf::Color::Yellow,      // Pantalla 4
+      sf::Color::Magenta,     // Pantalla 5
+      sf::Color::Cyan,        // Pantalla 6
+      sf::Color(255, 128, 0), // Pantalla 7 (Naranja)
+      sf::Color(128, 0, 255)  // Pantalla 8 (Púrpura)
   };
 
   for (int screen = 0; screen < NUM_SCREENS; ++screen) {
