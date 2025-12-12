@@ -46,7 +46,7 @@ private:
   std::vector<std::unique_ptr<Fireball>> m_fireballs;
 
   static constexpr int TILE_SIZE = 16;
-  static constexpr float LEVEL_WIDTH = 3200.0f; // 4 pantallas de ancho
+  static constexpr float LEVEL_WIDTH = 6400.0f; // 8 pantallas de ancho
 
   b2BodyId m_groundBodyId;
   float m_width;
@@ -60,7 +60,7 @@ private:
   // Plataformas sólidas (como el suelo)
   struct Platform {
     b2BodyId bodyId;
-    sf::RectangleShape shape;
+    sf::VertexArray vertices; // Para dibujar tiles con textura
     float x, y, width, height;
   };
   std::vector<Platform> m_platforms;
