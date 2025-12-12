@@ -1393,44 +1393,49 @@ void Level::checkCollisions(Player &player) {
         continue;
       }
 
-      sf::FloatRect enemyBounds = enemy->getBounds();
-      if (pBounds.findIntersection(enemyBounds)) {
-        sf::Vector2f enemyPos = enemy->getPosition();
-        float playerBottom = pBounds.position.y + pBounds.size.y;
+      // Custom Hitbox Logic: "Strict Stomp"
+      sf::Vector2f enemyPos = enemy->getPosition();
+      
+      // Damage Hitbox: Very Wide (24) to ensure any side contact is lethal.
+      // Sprite is ~21 wide. 24 extends slightly beyond visual to punish side touches.
+      float dmgW = 24.0f; 
+      float dmgH = 18.0f; // Body height
+      sf::FloatRect damageBox({enemyPos.x - dmgW/2.0f, enemyPos.y - dmgH}, {dmgW, dmgH});
+      
+      // Stomp Hitbox: Very Narrow (12) and Top Only.
+      // You must land ALMOST CENTERED on the head.
+      // If you hit the "shoulder" (side-top), you miss this box and hit damageBox instead.
+      float stompW = 12.0f; 
+      float stompH = 6.0f;
+      sf::FloatRect stompBox({enemyPos.x - stompW/2.0f, enemyPos.y - dmgH - stompH}, {stompW, stompH});
 
-        b2Vec2 pVel = player.getVelocity();
-        bool isFalling = pVel.y > 0.0f;
+      // Players velocity
+      b2Vec2 pVel = player.getVelocity();
+      // Must be falling significantly (> 1.0f) to count as a stomp
+      bool isFalling = pVel.y > 1.0f;
 
-        float enemyCenterY =
-            enemyBounds.position.y + (enemyBounds.size.y / 2.0f);
-        bool feetAboveCenter = playerBottom < enemyCenterY + 5.0f;
-
-        float enemyCenterX = enemyPos.x;
-        float playerCenterX = pPos.x;
-        float horizontalDistance = std::abs(playerCenterX - enemyCenterX);
-        float maxHorizontalDistance = (enemyBounds.size.x / 2.0f) + 6.0f;
-
-        bool horizontallyAligned = horizontalDistance < maxHorizontalDistance;
-
-        if (isFalling && feetAboveCenter && horizontallyAligned) {
+      // Check Stomp Intersection First
+      if (isFalling && pBounds.findIntersection(stompBox)) {
           enemy->stomp();
           player.bounce();
           m_stompCooldown = STOMP_COOLDOWN_TIME;
-          std::cout << "Enemy stomped!" << std::endl;
+          std::cout << "Enemy stomped (Strict Custom Hitbox)!" << std::endl;
           break;
-        } else {
+      }
+      // Check Damage Intersection Second
+      else if (pBounds.findIntersection(damageBox)) {
           Koopa *koopa = dynamic_cast<Koopa *>(enemy.get());
           if (koopa && koopa->isIdleShell()) {
-            float kickDirection = (pPos.x < enemyPos.x) ? 1.0f : -1.0f;
+            float kickDirection = (player.getPosition().x < enemyPos.x) ? 1.0f : -1.0f;
             float playerSpeed = std::abs(pVel.x);
             koopa->kick(kickDirection, playerSpeed);
             m_stompCooldown = STOMP_COOLDOWN_TIME;
             std::cout << "Shell kicked!" << std::endl;
             break;
           } else {
+            // Only take damage if touching the narrow "core" box
             player.takeDamage();
           }
-        }
       }
     }
   }

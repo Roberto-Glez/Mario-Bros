@@ -28,11 +28,12 @@ Koopa::Koopa(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox (Koopa ~21x15)
+    // Create hitbox (Koopa ~16x14 visual)
+    // Reducing size to match visual sprite tightly and avoid phantom hits (corners)
     b2Polygon box = b2MakeOffsetBox(
-        (21.0f / 2.0f) / Physics::SCALE, 
-        (15.0f / 2.0f) / Physics::SCALE,
-        (b2Vec2){0.0f, -(15.0f / 2.0f) / Physics::SCALE},
+        (16.0f / 2.0f) / Physics::SCALE, 
+        (14.0f / 2.0f) / Physics::SCALE,
+        (b2Vec2){0.0f, -(14.0f / 2.0f) / Physics::SCALE},
         b2MakeRot(0.0f)
     );
     b2ShapeDef shapeDef = b2DefaultShapeDef();

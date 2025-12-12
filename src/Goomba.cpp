@@ -24,11 +24,12 @@ Goomba::Goomba(Physics& physics, float x, float y)
     
     m_bodyId = b2CreateBody(m_physics.worldId(), &bodyDef);
     
-    // Create hitbox (Goomba ~21x9)
+    // Create hitbox (Goomba ~16x13 visual)
+    // Reducing size to match visual sprite tightly and avoid phantom hits
     b2Polygon box = b2MakeOffsetBox(
-        (21.0f / 2.0f) / Physics::SCALE, 
-        (9.0f / 2.0f) / Physics::SCALE,
-        (b2Vec2){0.0f, -(9.0f / 2.0f) / Physics::SCALE},
+        (16.0f / 2.0f) / Physics::SCALE, 
+        (13.0f / 2.0f) / Physics::SCALE,
+        (b2Vec2){0.0f, -(13.0f / 2.0f) / Physics::SCALE}, // Center Y offset based on height
         b2MakeRot(0.0f)
     );
     b2ShapeDef shapeDef = b2DefaultShapeDef();

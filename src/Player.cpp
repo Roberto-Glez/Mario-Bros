@@ -25,14 +25,17 @@ Player::Player(Physics &physics, float startX, float startY)
   m_sprite.setTexture(m_texture);
 
   // Set initial frame (Idle = 0)
-  // Height 19, Origin Y 10 as per calibration V2
-  m_sprite.setTextureRect(sf::IntRect({0, 0}, {16, 19}));
+  // Precise cutout: (0, 2), 17x25
+  m_sprite.setTextureRect(sf::IntRect({0, 2}, {17, 25}));
 
-  // Center origin X (8), Align Y (10)
-  m_sprite.setOrigin({16.0f / 2.0f, 10.0f});
+  // Center origin X (8.5), Align Y.
+  // Physics Box HalfHeight = 16. Scale = 2.
+  // (SpriteH - OriginY) * 2 = 16 => SpriteH - OriginY = 8 => OriginY = SpriteH - 8.
+  // OriginY = 25 - 8 = 17.
+  m_sprite.setOrigin({17.0f / 2.0f, 17.6f});
 
   // Scale visual
-  m_sprite.setScale({2.0f, 2.0f});
+  m_sprite.setScale({2.5f, 2.5f});
 
   // Definición del cuerpo (v3)
   b2BodyDef bodyDef = b2DefaultBodyDef();
@@ -187,9 +190,9 @@ void Player::update(float dt) {
 
   // Scale flipping based on direction
   if (m_facingRight) {
-    m_sprite.setScale({2.0f, 2.0f});
+    m_sprite.setScale({2.5f, 2.5f});
   } else {
-    m_sprite.setScale({-2.0f, 2.0f});
+    m_sprite.setScale({-2.5f, 2.5f});
   }
 
   // Chequeo de suelo mejorado (Hysteresis/Timer)
@@ -341,21 +344,83 @@ void Player::updateAnimation(float dt) {
       bool isMoving = std::abs(vel.x) > 0.5f;
 
       if (isMoving) {
-        // Running while throwing: sprites at (288, 2) and onwards
+        // Running while throwing: sprites starting after Idle Throw
+        // User reported clipping on right/showing left. Shift Right.
         int throwRunFrame = m_currentFrame % 3;
-        int throwLeft = 288 + throwRunFrame * 18;
-        m_sprite.setTextureRect(sf::IntRect({throwLeft, 2}, {18, 35}));
+        int throwLeft = 288 + throwRunFrame * 30; // Shifted start from 280 to 288
+        m_sprite.setTextureRect(sf::IntRect({throwLeft, 2}, {28, 35})); // Increased W by 2px
       } else {
-        // Idle throwing: sprite at (270, 2) - shifted 1px right to crop left
-        // edge
-        m_sprite.setTextureRect(sf::IntRect({270, 2}, {18, 35}));
+        // Idle throwing: (246, 2), 32x33
+        m_sprite.setTextureRect(sf::IntRect({246, 2}, {32, 33}));
       }
       m_sprite.setOrigin(
-          {18.0f / 2.0f, 20.0f}); // Lower origin for throwing sprites
+          {32.0f / 2.0f, 33.0f - 10.4f}); // Lower origin based on new height (33-10.4)
     } else {
-      // Normal animation
-      m_sprite.setTextureRect(sf::IntRect({left, 0}, {18, 35}));
-      m_sprite.setOrigin({18.0f / 2.0f, 22.0f});
+      int bX = 0, bY = 0, bW = 0, bH = 0;
+
+      if (m_isFireMario) {
+          // Fire Mario Custom Layout
+          // Idle: (1, 1), 22x34
+          // Brake: (38, 4), 26x31
+          // Jump (Index 2): Estimate ~70.
+          // Crouch (Index 3): Estimate ~100.
+          // Run (4,5,6): Estimate ~130+
+
+          if (textureIndex == 0) {
+              bX = 1; bY = 1; bW = 22; bH = 34;
+          } else if (textureIndex == 1) {
+              bX = 38; bY = 4; bW = 26; bH = 31;
+          } else if (textureIndex == 2) {
+              // Jump: Estimated (using previous Big Mario logic relative position)
+              // If idle is 1 (vs 0) and brake is 38 (vs 30), it's shifted right +8 ish?
+              // Let's guess X=78, Y=1, 27x36?
+              bX = 78; bY = 1; bW = 27; bH = 35;
+          } else if (textureIndex == 3) {
+              // Crouch: Shifted left by 2px (115 -> 113)
+              bX = 113; bY = 14; bW = 19; bH = 23;
+          } else {
+              // Run (4,5,6)
+              // Users reported left cut and right artifact. Shifted left by 5px (155 -> 150).
+              int runIdx = textureIndex - 4;
+              bY = 3; bH = 33;
+              bW = 26;
+              bX = 150 + runIdx * 30; 
+          }
+      } else {
+          // Standard Big Mario Layout
+          if (textureIndex == 0) {
+              // Idle: (0, 2), 19x36
+              bX = 0; bY = 2; bW = 19; bH = 36;
+          } else if (textureIndex == 1) {
+              // Brake (Derrape): (30, 5), 29x32
+              bX = 30; bY = 5; bW = 29; bH = 32;
+          } else if (textureIndex == 2) {
+              // Jump: (71, 2), 27x36
+              bX = 71; bY = 2; bW = 27; bH = 36;
+          } else if (textureIndex == 3) {
+               // Crouch: (110, 15), 17x23
+               bX = 110; bY = 15; bW = 17; bH = 23;
+          } else {
+               // Run (4,5,6)
+               int runIdx = textureIndex - 4;
+               bY = 3; bH = 34;
+               
+               if (runIdx == 2) {
+                   bX = 146 + runIdx * 30; 
+                   bW = 30; 
+               } else {
+                   bX = 146 + runIdx * 30; 
+                   bW = 24;
+               }
+          }
+      }
+
+      m_sprite.setTextureRect(sf::IntRect({bX, bY}, {bW, bH}));
+      
+      // Dynamic Origin for Big/Fire Mario
+      // Physics Box HalfHeight = 26. Scale = 2.5.
+      // OriginY = SpriteHeight - 10.4f.
+      m_sprite.setOrigin({bW / 2.0f, bH - 10.4f});
     }
 
     // Switch texture based on fire state
@@ -365,25 +430,56 @@ void Player::updateAnimation(float dt) {
       m_sprite.setTexture(m_bigTexture);
     }
   } else {
-    // Small Mario Animation
-    // Ajuste final V2:
-    // - Height 20 tenía un pixel negro abajo. -> Bajamos a 19.
-    // - Levitación:
-    //   Si Feet están en y=18 (último pixel válido en altura 19), y queremos
-    //   distancia visual 16px. (18 - OriginY) * 2.0 = 16. 18 - OriginY = 8.
-    //   OriginY = 10.
+    // Small Mario Animation - Precise Coordinates
+    int sX = 0, sY = 0, sW = 26, sH = 26;
 
-    m_sprite.setTextureRect(sf::IntRect({left, 0}, {16, 19}));
-    m_sprite.setOrigin({16.0f / 2.0f, 10.0f});
+    if (textureIndex == 0) { 
+        // Idle
+        sX = 0; sY = 2; sW = 17; sH = 25; 
+    } else if (textureIndex == 1) { 
+        // Brake
+        sX = 18; sY = 1; sW = 24; sH = 24; 
+    } else if (textureIndex == 2) { 
+        // Jump (Estimated start after Brake: 18+24+1 = 43)
+        // Adjusted to remove artifacts: Shift Right +1, Width reduced significantly (26->20 total)
+        sX = 43 + 1; sY = 0; sW = 20; sH = 26; 
+    } else if (textureIndex == 3) { 
+        // Crouch/Dead (Estimated start after Jump: 43+26+1 = 70)
+        sX = 70; sY = 0; sW = 26; sH = 26; 
+    } else {
+        // Run Frames (4, 5, 6)
+        // Adjust width: Reduced by 1px more (23 -> 22)
+        int runIndex = textureIndex - 4;
+        sW = 22; 
+        sH = 26;
+        sX = 97 + runIndex * 27; 
+        sY = 0;
+    }
+
+    m_sprite.setTextureRect(sf::IntRect({sX, sY}, {sW, sH}));
+    
+    // Dynamic Origin to keep feet aligned with physics box
+    // Formula: OriginY = SpriteHeight - 7.4f (Lowered by 1px from 6.4)
+    m_sprite.setOrigin({sW / 2.0f, sH - 7.4f});
   }
 
   // Special override only for DEAD state
   if (m_state == State::Dead) {
-    // User requested: Sprite 4 starts at pixel (55, 2).
-    // Assuming 16x16 size for the dead sprite.
-    m_sprite.setTextureRect(sf::IntRect({55, 2}, {16, 16}));
-    // Reset origin to match correct center for dying animation
-    m_sprite.setOrigin({16.0f / 2.0f, 10.0f});
+    // Dead state uses Texture Index 3 (Crouch/Dead sprite)
+    // Adjusted: Expand left by 4px to include arm
+    // Original estimate was 70. New X = 70 - 4 = 66.
+    // Width increases by 4 to compensate? Or just shift? 
+    // User said "amplia el area a la izquierda".
+    // If we shift left, we capture more pixels.
+    
+    int sX = 66; // Shifted left by 4
+    int sY = 0; 
+    int sW = 30; // Increased width to keep right edge similar (26+4) or just capture arm?
+    // Let's try width 30 to be safe.
+    int sH = 26;
+    
+    m_sprite.setTextureRect(sf::IntRect({sX, sY}, {sW, sH}));
+    m_sprite.setOrigin({sW / 2.0f, sH - 8.0f});
   }
 }
 
