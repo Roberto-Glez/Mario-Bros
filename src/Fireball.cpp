@@ -71,8 +71,8 @@ void Fireball::update(float dt) {
         // Keep constant horizontal velocity (straight line)
         b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){SPEED * m_direction, 0.0f});
         
-        // Destroy if out of bounds
-        if (pos.x * Physics::SCALE < -100.0f || pos.x * Physics::SCALE > 3500.0f) {
+        // Destroy if out of bounds (LEVEL_WIDTH = 6400, plus margin)
+        if (pos.x * Physics::SCALE < -100.0f || pos.x * Physics::SCALE > 6600.0f) {
             destroy();
         }
     }

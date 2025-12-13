@@ -1654,32 +1654,6 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
     m_platforms.push_back(plat);
   }
 
-  // Cargar textura de plantas para decoraciones
-  if (!m_plantasTexture.loadFromFile("assets/images/plantas.png")) {
-    std::cerr << "Error loading plantas.png" << std::endl;
-  }
-
-  // Sprite decorativo en X=256 (planta de fondo)
-  {
-    sf::Sprite decoration(m_plantasTexture);
-    decoration.setTextureRect(
-        sf::IntRect({5, 150}, {16, 16})); // Sprite en (5,150) de 16x16
-    decoration.setScale({2.0f, 2.0f});    // Escalar a 32x32
-    decoration.setPosition(
-        {256.0f, m_groundY - 32.0f}); // Posicionado justo encima del suelo
-    m_decorations.push_back(decoration);
-  }
-
-  // Sprite decorativo azul en X=288 (al lado del anterior)
-  {
-    sf::Sprite decoration(m_plantasTexture);
-    decoration.setTextureRect(sf::IntRect({5, 150}, {16, 16})); // Mismo sprite
-    decoration.setScale({2.0f, 2.0f});                   // Escalar a 32x32
-    decoration.setPosition({288.0f, m_groundY - 32.0f}); // Al lado derecho
-    decoration.setColor(sf::Color(100, 150, 255));       // Tinte azul
-    m_decorations.push_back(decoration);
-  }
-
   // Cargar textura de planta trampa
   if (!m_trapTexture.loadFromFile("assets/images/trampa.png")) {
     std::cerr << "Error loading trampa.png" << std::endl;

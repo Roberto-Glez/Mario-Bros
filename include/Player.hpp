@@ -83,6 +83,10 @@ private:
   // Death sound
   sf::SoundBuffer m_deathSoundBuffer;
   sf::Sound m_deathSound;
+  
+  // Jump sound
+  sf::SoundBuffer m_jumpSoundBuffer;
+  sf::Sound m_jumpSound;
 };
 
 #endif // PLAYER_HPP

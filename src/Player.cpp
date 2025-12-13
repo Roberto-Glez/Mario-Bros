@@ -10,7 +10,7 @@ Player::Player(Physics &physics, float startX, float startY)
       m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f),
       m_currentFrame(0), m_facingRight(true), m_state(State::Idle),
       m_fireballCooldown(0.0f), m_throwTimer(0.0f), m_isThrowing(false),
-      m_deathSound(m_deathSoundBuffer), m_frozen(false) {
+      m_deathSound(m_deathSoundBuffer), m_frozen(false), m_jumpSound(m_jumpSoundBuffer) {
   // ... (Constructor content unchanged) ...
   // Load Texture
   if (!m_texture.loadFromFile("assets/images/mario_chiquito.png")) {
@@ -27,6 +27,11 @@ Player::Player(Physics &physics, float startX, float startY)
   // Load Death Sound
   if (!m_deathSoundBuffer.loadFromFile("assets/music/muerte.wav")) {
     std::cerr << "Error loading muerte.wav" << std::endl;
+  }
+  
+  // Load Jump Sound
+  if (!m_jumpSoundBuffer.loadFromFile("assets/music/jump.ogg")) {
+    std::cerr << "Error loading jump.ogg" << std::endl;
   }
   
   m_sprite.setTexture(m_texture);
@@ -170,6 +175,7 @@ void Player::handleInput(float dt) {
                                       true);
     m_canJump = false;
     m_state = State::Jumping;
+    m_jumpSound.play(); // Play jump sound
   }
 }
 
@@ -666,7 +672,12 @@ void Player::die() {
   m_state = State::Dead;
   m_deathSound.play(); // Play death sound
 
-  // Jump up
+  // Always use small Mario sprite for death animation
+  m_isBig = false;
+  m_isFireMario = false;
+  m_sprite.setTexture(m_texture); // Switch to small Mario texture
+  m_sprite.setScale({2.5f, 2.5f}); // Reset scale for small Mario
+
   // Jump up
   b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
   b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, -20.0f}); // Jump (Higher)
@@ -709,8 +720,8 @@ void Player::die() {
 }
 
 bool Player::tryShootFireball() {
-  // Only Fire Mario can shoot
-  if (!m_isFireMario || m_isDead)
+  // Only Fire Mario can shoot (and not if dead or frozen)
+  if (!m_isFireMario || m_isDead || m_frozen)
     return false;
 
   // Check cooldown
