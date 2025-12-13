@@ -5,11 +5,13 @@
 #include "Enemy.hpp"
 #include "FireFlower.hpp"
 #include "Fireball.hpp"
+#include "Goal.hpp"
 #include "Goomba.hpp"
 #include "Item.hpp"
 #include "Koopa.hpp"
 #include "Physics.hpp"
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <box2d/box2d.h>
 #include <memory>
 #include <vector>
@@ -19,7 +21,7 @@ class Player;
 
 class Level {
 public:
-  Level(Physics &physics, float width, float height);
+  Level(Physics &physics, float width, float height, int levelNumber = 1);
   void draw(sf::RenderWindow &window);
   void update(float dt);
   void checkCollisions(Player &player);
@@ -53,6 +55,7 @@ private:
   float m_width;
   float m_height;
   float m_groundY;
+  int m_levelNumber;
 
   // Stomp cooldown to prevent ghost bounces and stomp loops
   float m_stompCooldown;
@@ -84,6 +87,23 @@ private:
   sf::Texture m_plantasTexture;
   sf::Texture m_trapTexture;
   std::vector<sf::Sprite> m_decorations;
+
+  // Stomp sound effect
+  sf::SoundBuffer m_stompSoundBuffer;
+  sf::Sound m_stompSound;
+  
+  // Powerup sound effect
+  sf::SoundBuffer m_powerupSoundBuffer;
+  sf::Sound m_powerupSound;
+  
+  // Goal
+  Goal m_goal;
+  sf::SoundBuffer m_goalSoundBuffer;
+  sf::Sound m_goalSound;
+  
+public:
+  bool isGoalReached() const { return m_goal.isTriggered(); }
+  bool isGoalAnimComplete() const { return m_goal.isAnimationComplete(); }
 };
 
 #endif // LEVEL_HPP

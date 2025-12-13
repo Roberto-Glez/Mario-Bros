@@ -2,8 +2,8 @@
 #include <iostream>
 
 Block::Block(Physics &physics, float x, float y)
-    : m_physics(&physics), m_type(Type::Question), m_active(true),
-      m_animTimer(0.0f), m_frame(0), m_sprite(m_texture) {
+    : m_physics(&physics),  m_sprite(m_texture), m_type(Type::Question), m_active(true),
+      m_animTimer(0.0f), m_frame(0) {
   // Cargar textura primero
   if (!m_texture.loadFromFile("assets/images/bloque_poder.png")) {
     std::cerr << "Error loading bloque_poder.png" << std::endl;

@@ -3,6 +3,7 @@
 
 #include "Physics.hpp"
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 
 class Player {
 public:
@@ -24,6 +25,10 @@ public:
   void takeDamage();
   bool isDead() const { return m_isDead; }
   void die();
+  
+  // Freeze (for goal reached)
+  void freeze();
+  bool isFrozen() const { return m_frozen; }
 
   // Fireball
   bool tryShootFireball(); // Returns true if fireball should be spawned
@@ -50,6 +55,7 @@ private:
   bool m_isDead;
   bool m_isInvulnerable;
   float m_invulnerableTimer;
+  bool m_frozen; // For goal reached
 
   // Animation state
   float m_animationTimer;
@@ -73,6 +79,10 @@ private:
   bool m_isThrowing;
   static constexpr float FIREBALL_COOLDOWN = 0.5f;
   static constexpr float THROW_ANIM_DURATION = 0.15f;
+
+  // Death sound
+  sf::SoundBuffer m_deathSoundBuffer;
+  sf::Sound m_deathSound;
 };
 
 #endif // PLAYER_HPP

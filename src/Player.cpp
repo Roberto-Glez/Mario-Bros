@@ -9,7 +9,8 @@ Player::Player(Physics &physics, float startX, float startY)
       m_isInvulnerable(false), m_invulnerableTimer(0.0f),
       m_animationTimer(0.0f), m_groundTimer(0.0f), m_runTimer(0.0f),
       m_currentFrame(0), m_facingRight(true), m_state(State::Idle),
-      m_fireballCooldown(0.0f), m_throwTimer(0.0f), m_isThrowing(false) {
+      m_fireballCooldown(0.0f), m_throwTimer(0.0f), m_isThrowing(false),
+      m_deathSound(m_deathSoundBuffer), m_frozen(false) {
   // ... (Constructor content unchanged) ...
   // Load Texture
   if (!m_texture.loadFromFile("assets/images/mario_chiquito.png")) {
@@ -22,6 +23,12 @@ Player::Player(Physics &physics, float startX, float startY)
   if (!m_fireTexture.loadFromFile("assets/images/mario_fuego.png")) {
     std::cerr << "Error loading mario_fuego.png" << std::endl;
   }
+  
+  // Load Death Sound
+  if (!m_deathSoundBuffer.loadFromFile("assets/music/muerte.wav")) {
+    std::cerr << "Error loading muerte.wav" << std::endl;
+  }
+  
   m_sprite.setTexture(m_texture);
 
   // Set initial frame (Idle = 0)
@@ -63,7 +70,7 @@ Player::Player(Physics &physics, float startX, float startY)
 }
 
 void Player::handleInput(float dt) {
-  if (m_isDead)
+  if (m_isDead || m_frozen)
     return;
 
   b2Vec2 vel = b2Body_GetLinearVelocity(m_bodyId);
@@ -557,6 +564,8 @@ void Player::takeDamage() {
   if (m_isInvulnerable || m_isDead)
     return;
 
+  m_deathSound.play(); // Play death/damage sound
+
   if (m_isFireMario) {
     // Fire Mario -> Big Mario
     m_isFireMario = false;
@@ -611,6 +620,7 @@ void Player::die() {
 
   m_isDead = true;
   m_state = State::Dead;
+  m_deathSound.play(); // Play death sound
 
   // Jump up
   // Jump up
@@ -673,4 +683,12 @@ bool Player::tryShootFireball() {
   m_throwTimer = 0.0f;
 
   return true;
+}
+
+void Player::freeze() {
+  m_frozen = true;
+  // Stop all movement
+  if (b2Body_IsValid(m_bodyId)) {
+    b2Body_SetLinearVelocity(m_bodyId, (b2Vec2){0.0f, 0.0f});
+  }
 }

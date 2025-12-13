@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <iostream>
 
-Level::Level(Physics &physics, float width, float height)
+Level::Level(Physics &physics, float width, float height, int levelNumber)
     : m_physics(physics), m_width(width), m_height(height),
-      m_stompCooldown(0.0f) {
+      m_stompCooldown(0.0f), m_stompSound(m_stompSoundBuffer), 
+      m_powerupSound(m_powerupSoundBuffer), m_goalSound(m_goalSoundBuffer),
+      m_levelNumber(levelNumber) {
   // Load Textures
   if (!m_texture.loadFromFile("assets/images/tilesets.png")) {
     std::cerr << "Error loading tilesets.png" << std::endl;
@@ -13,6 +15,24 @@ Level::Level(Physics &physics, float width, float height)
   if (!m_texture2.loadFromFile("assets/images/plataformas.png")) {
     std::cerr << "Error loading plataformas.png" << std::endl;
   }
+  
+  // Load Stomp Sound
+  if (!m_stompSoundBuffer.loadFromFile("assets/music/aplastar.mp3")) {
+    std::cerr << "Error loading aplastar.mp3" << std::endl;
+  }
+  
+  // Load Powerup Sound
+  if (!m_powerupSoundBuffer.loadFromFile("assets/music/powerup.wav")) {
+    std::cerr << "Error loading powerup.wav" << std::endl;
+  }
+  
+  // Load Goal Sound
+  if (!m_goalSoundBuffer.loadFromFile("assets/music/goal_sound.wav")) {
+    std::cerr << "Error loading goal_sound.wav" << std::endl;
+  }
+  
+  // Initialize Goal at end of level (near LEVEL_WIDTH)
+  m_goal.init(LEVEL_WIDTH - 200.0f, height - 32.0f);
 
   // Config Setup
   m_groundY = height - 32.0f;
@@ -216,9 +236,11 @@ Level::Level(Physics &physics, float width, float height)
   b2ShapeDef wallShapeDef = b2DefaultShapeDef();
   b2CreatePolygonShape(wallId, &wallShapeDef, &wallBox);
 
-  // Bloques distribuidos a lo largo del nivel extendido (alineados a la cuadrícula)
-  // Altura: 3 bloques de espacio vacío = 96px. Centro del bloque = 96 + 16 = 112px arriba del suelo.
-  float blockY = m_groundY - 112.0f;
+  // ========== LEVEL-SPECIFIC CONTENT ==========
+  if (m_levelNumber == 1) {
+    // Bloques distribuidos a lo largo del nivel extendido (alineados a la cuadrícula)
+    // Altura: 3 bloques de espacio vacío = 96px. Centro del bloque = 96 + 16 = 112px arriba del suelo.
+    float blockY = m_groundY - 112.0f;
   
   // X alineados a centros de tiles (N * 32 + 16)
   m_blocks.emplace_back(m_physics, 1808.0f, blockY); // Tile 56
@@ -1735,6 +1757,16 @@ Level::Level(Physics &physics, float width, float height)
       m_killBlocks.push_back(kBlock);
     }
   }
+  } // End of level 1 content
+  else if (m_levelNumber == 2) {
+    // ========== LEVEL 2: BASIC GROUND ONLY ==========
+    // Level 2 starts with just ground - first section of the grid
+    // No enemies, no blocks, no platforms, no decorations
+    // Ground and physics bodies were already created above
+    
+    // Optional: Move goal to end of level 2
+    // m_goal is already initialized at LEVEL_WIDTH - 200.0f
+  }
 }
 
 void Level::update(float dt) {
@@ -1800,6 +1832,9 @@ void Level::update(float dt) {
                                      return !f->isAlive();
                                    }),
                     m_fireballs.end());
+  
+  // Update Goal animation
+  m_goal.update(dt);
 }
 
 void Level::checkCollisions(Player &player) {
@@ -1858,6 +1893,7 @@ void Level::checkCollisions(Player &player) {
     if (!item->isCollected() && !item->isSpawning()) {
       if (player.getBounds().findIntersection(item->getBounds())) {
         item->collect();
+        m_powerupSound.play(); // Play powerup sound
 
         // Check if it's a Fire Flower
         FireFlower *fireFlower = dynamic_cast<FireFlower *>(item.get());
@@ -1923,6 +1959,7 @@ void Level::checkCollisions(Player &player) {
         enemy->stomp();
         player.bounce();
         m_stompCooldown = STOMP_COOLDOWN_TIME;
+        m_stompSound.play(); // Play stomp sound
         std::cout << "Enemy stomped (Strict Custom Hitbox)!" << std::endl;
         break;
       }
@@ -1942,6 +1979,15 @@ void Level::checkCollisions(Player &player) {
           player.takeDamage();
         }
       }
+    }
+  }
+  
+  // Check Goal collision
+  if (!m_goal.isTriggered()) {
+    if (player.getPosition().x >= m_goal.getX()) {
+      m_goal.trigger();
+      m_goalSound.play();
+      std::cout << "Goal reached!" << std::endl;
     }
   }
 }
@@ -2016,7 +2062,7 @@ void Level::draw(sf::RenderWindow &window) {
   // Marcadores de debug para identificar límites de pantalla
   // Cada pantalla es de 800px de ancho, hay 8 pantallas
   static constexpr float SCREEN_WIDTH = 800.0f;
-  static constexpr float SCREEN_HEIGHT = 600.0f;
+  // static constexpr float SCREEN_HEIGHT = 600.0f; // Unused
   static constexpr int NUM_SCREENS = 8;
   static constexpr float MARKER_SIZE = 32.0f;
 
@@ -2056,6 +2102,9 @@ void Level::draw(sf::RenderWindow &window) {
     // marker.setPosition({screenEndX, m_groundY - MARKER_SIZE});
     // window.draw(marker);
   }
+  
+  // Draw Goal
+  m_goal.draw(window);
 }
 
 void Level::spawnFireball(float x, float y, float direction) {

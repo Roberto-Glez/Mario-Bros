@@ -12,8 +12,8 @@ struct GameSession {
   std::unique_ptr<Level> level;
   std::unique_ptr<Player> player;
 
-  GameSession(float width, float height) {
-    level = std::make_unique<Level>(physics, width, height);
+  GameSession(float width, float height, int levelNumber = 1) {
+    level = std::make_unique<Level>(physics, width, height, levelNumber);
     player = std::make_unique<Player>(physics, 100.0f, 400.0f);
   }
 };
@@ -40,10 +40,35 @@ int main() {
   hudText.setFillColor(sf::Color::White);
   hudText.setPosition({20.f, 20.f});
 
+  // Load Menu Texture
+  sf::Texture menuTexture;
+  if (!menuTexture.loadFromFile("assets/images/menu.jpg")) {
+      std::cerr << "Failed to load assets/images/menu.jpg" << std::endl;
+  }
+  sf::Sprite menuSprite(menuTexture);
+  
+  // Scale and center the menu image to fit the 800x600 window
+  sf::Vector2u texSize = menuTexture.getSize();
+  menuSprite.setOrigin({texSize.x / 2.0f, texSize.y / 2.0f});
+  menuSprite.setPosition({WIDTH / 2.0f, HEIGHT / 2.0f});
+  
+  // Scale to fit width and height explicitly
+  menuSprite.setScale({(float)WIDTH / texSize.x, (float)HEIGHT / texSize.y});
+
+
+  // Load Menu Sound
+  sf::SoundBuffer menuSoundBuffer;
+  if (!menuSoundBuffer.loadFromFile("assets/music/menu_sound.wav")) {
+      std::cerr << "Failed to load assets/music/menu_sound.wav" << std::endl;
+  }
+  sf::Sound menuSound(menuSoundBuffer);
+
+
   // Game State
   int lives = 3;
-  enum State { PLAYING, DEATH_ANIM, LIVES_SCREEN, GAME_OVER };
-  State currentState = PLAYING;
+  int currentLevel = 1;
+  enum State { MENU, PLAYING, DEATH_ANIM, LIVES_SCREEN, GAME_OVER, LEVEL_COMPLETE, GAME_WON };
+  State currentState = MENU; // Start at MENU
   float stateTimer = 0.0f;
 
   // Session - usar LEVEL_WIDTH desde Level.hpp (3200px)
@@ -54,7 +79,15 @@ int main() {
   sf::View camera(sf::FloatRect({0.f, 0.f}, {(float)WIDTH, (float)HEIGHT}));
 
   auto update = [&](float dt) {
-    if (currentState == PLAYING) {
+    if (currentState == MENU) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
+            menuSound.play(); // Play menu sound
+            currentState = PLAYING; 
+            // Reset session just in case, or just start? 
+            // Fresh start is better to ensure positions are correct.
+            session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
+        }
+    } else if (currentState == PLAYING) {
       session->physics.step(dt);
       session->player->handleInput(dt);
       session->player->update(dt);
@@ -82,6 +115,17 @@ int main() {
       float camY = std::min(session->player->getPosition().y, maxCamY);
 
       camera.setCenter({camX, camY});
+
+      // Check Goal Reached
+      if (session->level->isGoalReached()) {
+        // Freeze player when goal is reached
+        session->player->freeze();
+        
+        if (session->level->isGoalAnimComplete()) {
+          currentState = LEVEL_COMPLETE;
+          stateTimer = 3.0f; // Show level screen for 3 seconds
+        }
+      }
 
       // Check Death
       if (session->player->isDead()) {
@@ -111,26 +155,54 @@ int main() {
     } else if (currentState == LIVES_SCREEN) {
       stateTimer -= dt;
       if (stateTimer <= 0.0f) {
-        // Reset Level
-        session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
+        // Reset Level (keep same level number)
+        session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT, currentLevel);
         currentState = PLAYING;
         camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
       }
     } else if (currentState == GAME_OVER) {
       stateTimer -= dt;
       if (stateTimer <= 0.0f) {
-        // Restart Game
+        // Restart Game to Menu
+        currentState = MENU;
         lives = 3;
-        session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT);
-        currentState = LIVES_SCREEN;
-        stateTimer = 2.0f;
+        currentLevel = 1; // Reset to level 1
+        camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
+      }
+    } else if (currentState == LEVEL_COMPLETE) {
+      stateTimer -= dt;
+      if (stateTimer <= 0.0f) {
+        // Check if game is complete (finished level 2)
+        if (currentLevel >= 2) {
+          currentState = GAME_WON;
+          stateTimer = 5.0f; // Show "Juego Terminado" for 5 seconds
+        } else {
+          // Start next level
+          currentLevel++;
+          // Give 3 extra lives when reaching level 2
+          lives += 3;
+          session = std::make_unique<GameSession>((float)WIDTH, (float)HEIGHT, currentLevel);
+          currentState = PLAYING;
+          camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
+        }
+      }
+    } else if (currentState == GAME_WON) {
+      stateTimer -= dt;
+      if (stateTimer <= 0.0f) {
+        // Return to menu after winning
+        currentState = MENU;
+        lives = 3;
+        currentLevel = 1;
         camera.setCenter({(float)WIDTH / 2.0f, (float)HEIGHT / 2.0f});
       }
     }
   };
 
   auto render = [&]() {
-    if (currentState == PLAYING || currentState == DEATH_ANIM) {
+    if (currentState == MENU) {
+        window.window().setView(window.window().getDefaultView());
+        window.window().draw(menuSprite);
+    } else if (currentState == PLAYING || currentState == DEATH_ANIM) {
       window.window().setView(camera);
       session->level->draw(window.window());
       session->player->draw(window.window());
@@ -149,6 +221,10 @@ int main() {
 
       if (currentState == LIVES_SCREEN) {
         uiText.setString(std::to_string(lives) + " Lives");
+      } else if (currentState == LEVEL_COMPLETE) {
+        uiText.setString("Nivel " + std::to_string(currentLevel + 1));
+      } else if (currentState == GAME_WON) {
+        uiText.setString("Juego Terminado");
       } else {
         uiText.setString("GAME OVER");
       }
