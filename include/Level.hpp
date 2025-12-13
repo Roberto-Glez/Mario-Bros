@@ -10,11 +10,12 @@
 #include "Item.hpp"
 #include "Koopa.hpp"
 #include "Physics.hpp"
-#include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
+#include <SFML/Graphics.hpp>
 #include <box2d/box2d.h>
 #include <memory>
 #include <vector>
+
 
 // Forward declaration
 class Player;
@@ -90,19 +91,21 @@ private:
   sf::Sprite m_cornerSprite; // Sprite "spray" de la esquina
   std::vector<sf::Sprite> m_decorations;
 
+  std::vector<sf::RectangleShape> m_coloredPlatforms;
+
   // Stomp sound effect
   sf::SoundBuffer m_stompSoundBuffer;
   sf::Sound m_stompSound;
-  
+
   // Powerup sound effect
   sf::SoundBuffer m_powerupSoundBuffer;
   sf::Sound m_powerupSound;
-  
+
   // Goal
   Goal m_goal;
   sf::SoundBuffer m_goalSoundBuffer;
   sf::Sound m_goalSound;
-  
+
 public:
   bool isGoalReached() const { return m_goal.isTriggered(); }
   bool isGoalAnimComplete() const { return m_goal.isAnimationComplete(); }
