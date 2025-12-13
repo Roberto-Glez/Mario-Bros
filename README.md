@@ -81,5 +81,7 @@ Crystal Games: Salto https://opengameart.org/content/jumping-man-sounds
 
 MentalSanityOff: Sonido de aplastar https://opengameart.org/content/jump-landing-sound
 
+Dj Julián López Fracassi: Música de fondo https://youtu.be/OI5_tN2NXmw?si=PJpULj7VxDrrv8T-
+
 ---
 *Proyecto educativo sin fines de lucro. Las referencias a marcas son con fines de parodia.*
