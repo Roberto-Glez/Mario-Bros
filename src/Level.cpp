@@ -7,7 +7,7 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
     : m_physics(physics), m_width(width), m_height(height),
       m_stompCooldown(0.0f), m_stompSound(m_stompSoundBuffer), 
       m_powerupSound(m_powerupSoundBuffer), m_goalSound(m_goalSoundBuffer),
-      m_levelNumber(levelNumber) {
+      m_levelNumber(levelNumber), m_bgSprite(m_bgTexture), m_cornerSprite(m_bgTexture) {
   // Load Textures
   if (!m_texture.loadFromFile("assets/images/tilesets.png")) {
     std::cerr << "Error loading tilesets.png" << std::endl;
@@ -33,6 +33,23 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
   
   // Initialize Goal at end of level (near LEVEL_WIDTH)
   m_goal.init(LEVEL_WIDTH - 200.0f, height - 32.0f);
+
+  // Load Background Texture
+  if (!m_bgTexture.loadFromFile("assets/images/background.png")) {
+    std::cerr << "Error loading background.png" << std::endl;
+  }
+  // Ensure bgSprite uses the texture (for the main background loop)
+  m_bgSprite.setTexture(m_bgTexture);
+  m_bgSprite.setTextureRect(
+      sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(1600, 750)));
+
+  // Configure corner sprite (spray)
+  // Region: (0, 748) is bottom-left. 74x74 up/right.
+  // SFML IntRect(left, top, width, height) -> Top = 748 - 74 = 674.
+  m_cornerSprite.setTexture(m_bgTexture);
+  m_cornerSprite.setTextureRect(
+      sf::IntRect(sf::Vector2i(0, 674), sf::Vector2i(74, 74)));
+  m_cornerSprite.setPosition(sf::Vector2f(0.0f, 0.0f));
 
   // Config Setup
   m_groundY = height - 32.0f;
@@ -241,7 +258,6 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
     // Bloques distribuidos a lo largo del nivel extendido (alineados a la cuadrícula)
     // Altura: 3 bloques de espacio vacío = 96px. Centro del bloque = 96 + 16 = 112px arriba del suelo.
     float blockY = m_groundY - 112.0f;
-  
   // X alineados a centros de tiles (N * 32 + 16)
   m_blocks.emplace_back(m_physics, 1808.0f, blockY); // Tile 56
   m_blocks.emplace_back(m_physics, 2096.0f, blockY); // Tile 65
@@ -1669,13 +1685,22 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
     std::cerr << "Error loading trampa.png" << std::endl;
   }
 
+  // Background texture loading and setup moved to top of constructor to avoid
+  // duplicates and errors.
+
+  // Corner Sprite (Spray) initialization
+  // Source: Bottom-left (0, 748) -> 74x74 area upwards and right
+  // Rect: x=0, y=674 (748-74), w=74, h=74
+  // Duplicate m_cornerSprite initialization removed (moved to top)
+
   // Bloques asesinos desde X=2272 hasta X=2688, al ras del suelo
   for (float x = 2272.0f; x < 2688.0f; x += 32.0f) {
     // Use the explicit constructor we added to KillBlock
     KillBlock kBlock(m_trapTexture);
-    kBlock.x = x;
-    kBlock.y = m_groundY - 32.0f; // Al ras del suelo (bajado 1 bloque)
-    kBlock.width = 32.0f;
+    // REDUCED COLLISION: 16px width
+    kBlock.x = x + 8.0f; // Offset collision
+    kBlock.y = m_groundY - 32.0f;
+    kBlock.width = 16.0f;
     kBlock.height = 32.0f;
 
     // Physics Body (Static)
@@ -1707,24 +1732,45 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
     float scaleY = 32.0f / 173.0f;
     kBlock.sprite.setScale({scaleX, scaleY});
 
-    kBlock.sprite.setPosition({kBlock.x, kBlock.y});
+    // VISUAL POSITION: Original x (centered visually)
+    kBlock.sprite.setPosition({x, kBlock.y});
 
     m_killBlocks.push_back(kBlock);
   }
 
-  // Grupos de bloques trampa elevados (15 bloques de altura desde el suelo)
-  float trapHeightY = m_groundY - (15 * 32.0f);
-  std::vector<float> startXs = {4128.0f, 4320.0f, 4512.0f};
+  // Grupos de bloques trampa (Varios grupos configurados)
+  struct TrapGroup {
+    float startX;
+    float heightBlocks; // Altura en bloques desde el suelo
+    int count;
+  };
 
-  for (float startX : startXs) {
-    // 3 bloques por grupo
-    for (int i = 0; i < 3; ++i) {
-      float x = startX + (i * 32.0f);
+  std::vector<TrapGroup> groups = {
+      // Grupos originales elevados (15 bloques de altura)
+      {4128.0f, 15.0f, 3},
+      {4320.0f, 15.0f, 3},
+      {4512.0f, 15.0f, 3},
+
+      // Nuevos grupos solicitados (8 bloques de altura)
+      {4352.0f, 8.0f, 1},
+      {4544.0f, 8.0f, 1},
+
+      // Nuevos grupos en el suelo (1 bloque de altura)
+      {4352.0f, 1.0f, 1},
+      {4544.0f, 1.0f, 1}};
+
+  for (const auto &group : groups) {
+    float groupY = m_groundY - (group.heightBlocks * 32.0f);
+
+    for (int i = 0; i < group.count; ++i) {
+      float x = group.startX + (i * 32.0f);
 
       KillBlock kBlock(m_trapTexture);
-      kBlock.x = x;
-      kBlock.y = trapHeightY;
-      kBlock.width = 32.0f;
+
+      // REDUCED COLLISION: 16px width
+      kBlock.x = x + 8.0f; // Offset collision
+      kBlock.y = groupY;
+      kBlock.width = 16.0f;
       kBlock.height = 32.0f;
 
       // Physics Body (Static)
@@ -1752,7 +1798,8 @@ Level::Level(Physics &physics, float width, float height, int levelNumber)
       float scaleY = 32.0f / 173.0f;
       kBlock.sprite.setScale({scaleX, scaleY});
 
-      kBlock.sprite.setPosition({kBlock.x, kBlock.y});
+      // VISUAL POSITION: Original x (centered visually)
+      kBlock.sprite.setPosition({x, kBlock.y});
 
       m_killBlocks.push_back(kBlock);
     }
@@ -1993,34 +2040,18 @@ void Level::checkCollisions(Player &player) {
 }
 
 void Level::draw(sf::RenderWindow &window) {
-  // Dibujar fondo de tablero de ajedrez (cuadros de 32x32)
-  // Alineado desde el suelo hacia arriba
-  static constexpr float CHECKER_SIZE = 32.0f;
-  int numCols = static_cast<int>(LEVEL_WIDTH / CHECKER_SIZE) + 1;
+  // Dibujar Fondo (Repetir 4 veces para cubrir 6400px de ancho)
+  for (int i = 0; i < 4; ++i) {
+    m_bgSprite.setPosition(sf::Vector2f(i * 1600.0f, m_groundY - 750.0f));
+    window.draw(m_bgSprite);
+  }
+
+  // Draw Corner Sprite (Spray)
+  window.draw(m_cornerSprite);
+  // CHECKER_SIZE removed
 
   // Calcular cuántas filas desde el suelo hacia arriba
-  float bottomY = m_groundY - CHECKER_SIZE; // Última fila termina en el suelo
-  int numRows = static_cast<int>(m_groundY / CHECKER_SIZE) + 1;
-
-  sf::RectangleShape checker({CHECKER_SIZE, CHECKER_SIZE});
-
-  for (int row = 0; row < numRows; ++row) {
-    // Calcular Y desde el suelo hacia arriba
-    float y = bottomY - (row * CHECKER_SIZE);
-    if (y < -CHECKER_SIZE)
-      break; // No dibujar fuera de pantalla
-
-    for (int col = 0; col < numCols; ++col) {
-      // Alternar colores como tablero de ajedrez
-      if ((row + col) % 2 == 0) {
-        checker.setFillColor(sf::Color::White);
-      } else {
-        checker.setFillColor(sf::Color::Black);
-      }
-      checker.setPosition({col * CHECKER_SIZE, y});
-      window.draw(checker);
-    }
-  }
+  // CHECKERED BACKGROUND REMOVED
 
   // Dibujar suelo (sección normal con tilesets.png)
   window.draw(m_groundVertices, &m_texture);
@@ -2059,49 +2090,7 @@ void Level::draw(sf::RenderWindow &window) {
     window.draw(kBlock.sprite);
   }
 
-  // Marcadores de debug para identificar límites de pantalla
-  // Cada pantalla es de 800px de ancho, hay 8 pantallas
-  static constexpr float SCREEN_WIDTH = 800.0f;
-  // static constexpr float SCREEN_HEIGHT = 600.0f; // Unused
-  static constexpr int NUM_SCREENS = 8;
-  static constexpr float MARKER_SIZE = 32.0f;
-
-  sf::RectangleShape marker({MARKER_SIZE, MARKER_SIZE});
-
-  // Colores diferentes para cada pantalla
-  sf::Color screenColors[NUM_SCREENS] = {
-      sf::Color::Red,         // Pantalla 1
-      sf::Color::Green,       // Pantalla 2
-      sf::Color::Blue,        // Pantalla 3
-      sf::Color::Yellow,      // Pantalla 4
-      sf::Color::Magenta,     // Pantalla 5
-      sf::Color::Cyan,        // Pantalla 6
-      sf::Color(255, 128, 0), // Pantalla 7 (Naranja)
-      sf::Color(128, 0, 255)  // Pantalla 8 (Púrpura)
-  };
-
-  for (int screen = 0; screen < NUM_SCREENS; ++screen) {
-    float screenStartX = screen * SCREEN_WIDTH;
-    float screenEndX = screenStartX + SCREEN_WIDTH - MARKER_SIZE;
-
-    marker.setFillColor(screenColors[screen]);
-
-    // Esquina superior izquierda
-    marker.setPosition({screenStartX, 0.0f});
-    window.draw(marker);
-
-    // Esquina superior derecha
-    marker.setPosition({screenEndX, 0.0f});
-    window.draw(marker);
-
-    // Esquina inferior izquierda (encima del suelo) - REMOVIDO
-    // marker.setPosition({screenStartX, m_groundY - MARKER_SIZE});
-    // window.draw(marker);
-
-    // Esquina inferior derecha (encima del suelo) - REMOVIDO
-    // marker.setPosition({screenEndX, m_groundY - MARKER_SIZE});
-    // window.draw(marker);
-  }
+  // SCREEN BOUNDARY MARKERS REMOVED
   
   // Draw Goal
   m_goal.draw(window);
