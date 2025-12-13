@@ -47,6 +47,10 @@ Los peligros de la obra tienen comportamientos únicos:
 
 * **La Tabla con Clavos Oxidados:** La trampa más peligrosa. A diferencia de los enemigos normales, tocar esta trampa causa tétanos, eliminando al jugador inmediatamente sin importar si está en estado Grande o Fiestero. Requiere saltos precisos para evitarla.
 
+### 4. Arnés de sguridad
+
+* **Pegarse a las paredes:** EL maestrín tiene un arnés de seguridad que lo hace pegarse a las paredes, no las puede escalar pero le da tiempo a reflexionar que puede hacer en la situación en la que está.
+
 ---
 
 ## 👥 Créditos
