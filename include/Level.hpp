@@ -83,6 +83,9 @@ private:
   // Decoraciones de fondo
   sf::Texture m_plantasTexture;
   sf::Texture m_trapTexture;
+  sf::Texture m_bgTexture;   // Nueva textura de fondo
+  sf::Sprite m_bgSprite;     // Nuevo sprite de fondo
+  sf::Sprite m_cornerSprite; // Sprite "spray" de la esquina
   std::vector<sf::Sprite> m_decorations;
 };
 
